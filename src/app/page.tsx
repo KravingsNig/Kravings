@@ -8,18 +8,51 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { AuthProvider } from '@/hooks/use-auth';
+import { useEffect, useState } from 'react';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const featuredVendors = [
-  { id: '1', name: 'Gourmet Burgers', description: 'Juicy, handcrafted burgers made with love.', imageUrl: 'https://placehold.co/600x400', hint: 'burger shop' },
-  { id: '2', name: 'Pizza Palace', description: 'Authentic Italian pizza with fresh toppings.', imageUrl: 'https://placehold.co/600x400', hint: 'pizza restaurant' },
-  { id: '3', name: 'Sushi Central', description: 'The freshest sushi and sashimi in town.', imageUrl: 'https://placehold.co/600x400', hint: 'sushi bar' },
-  { id: '4', name: 'Taco Town', description: 'Spicy and savory tacos for every craving.', imageUrl: 'https://placehold.co/600x400', hint: 'taco stand' },
-  { id: '5', name: 'Sweet Escapes', description: 'Decadent desserts and pastries.', imageUrl: 'https://placehold.co/600x400', hint: 'cake shop' },
-  { id: '6', name: 'Vegan Vibes', description: 'Delicious and healthy plant-based meals.', imageUrl: 'https://placehold.co/600x400', hint: 'vegan food' },
-];
-
+interface Vendor {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  hint: string;
+}
 
 function HomeComponent() {
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVendors = async () => {
+      try {
+        const q = query(collection(db, "users"), where("isVendor", "==", true));
+        const querySnapshot = await getDocs(q);
+        const fetchedVendors: Vendor[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          fetchedVendors.push({
+            id: doc.id,
+            name: data.businessName || 'Unnamed Vendor',
+            description: data.businessDescription || 'No description available.',
+            imageUrl: 'https://placehold.co/600x400',
+            hint: data.businessName?.toLowerCase().split(' ').slice(0, 2).join(' ') || 'vendor',
+          });
+        });
+        setVendors(fetchedVendors);
+      } catch (error) {
+        console.error("Error fetching vendors: ", error);
+        // Optionally, set an error state to show in the UI
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVendors();
+  }, []);
+
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <section className="mb-12 text-center">
@@ -44,31 +77,48 @@ function HomeComponent() {
       <section>
         <h2 className="mb-8 text-center font-headline text-3xl font-bold">Featured Vendors</h2>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {featuredVendors.map((vendor) => (
-            <Link key={vendor.id} href={`/vendor/${vendor.id}`} className="group block">
-              <Card className="h-full overflow-hidden border-border/60 transition-all duration-300 ease-in-out group-hover:-translate-y-1 group-hover:shadow-xl">
-                <CardHeader className="p-0">
-                  <div className="aspect-video overflow-hidden">
-                    <Image
-                      src={vendor.imageUrl}
-                      alt={vendor.name}
-                      width={600}
-                      height={400}
-                      data-ai-hint={vendor.hint}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <CardTitle className="mb-2 font-headline text-xl font-semibold">{vendor.name}</CardTitle>
-                  <CardDescription>{vendor.description}</CardDescription>
-                  <Button variant="link" className="mt-4 p-0 font-semibold text-primary">
-                    View Products <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+          {loading ? (
+             Array.from({ length: 6 }).map((_, index) => (
+                <Card key={index} className="h-full overflow-hidden">
+                    <Skeleton className="aspect-video w-full" />
+                    <CardContent className="p-6">
+                        <Skeleton className="h-6 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-full mb-4" />
+                        <Skeleton className="h-5 w-1/3" />
+                    </CardContent>
+                </Card>
+             ))
+          ) : vendors.length > 0 ? (
+            vendors.map((vendor) => (
+              <Link key={vendor.id} href={`/vendor/${vendor.id}`} className="group block">
+                <Card className="h-full overflow-hidden border-border/60 transition-all duration-300 ease-in-out group-hover:-translate-y-1 group-hover:shadow-xl">
+                  <CardHeader className="p-0">
+                    <div className="aspect-video overflow-hidden">
+                      <Image
+                        src={vendor.imageUrl}
+                        alt={vendor.name}
+                        width={600}
+                        height={400}
+                        data-ai-hint={vendor.hint}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <CardTitle className="mb-2 font-headline text-xl font-semibold">{vendor.name}</CardTitle>
+                    <CardDescription>{vendor.description}</CardDescription>
+                    <Button variant="link" className="mt-4 p-0 font-semibold text-primary">
+                      View Products <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))
+          ) : (
+             <div className="col-span-full text-center text-muted-foreground py-8">
+              <p>No vendors are available at the moment. Please check back later.</p>
+            </div>
+          )}
         </div>
       </section>
     </div>
