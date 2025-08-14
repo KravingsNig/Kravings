@@ -1,11 +1,16 @@
+
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +24,9 @@ const formSchema = z.object({
 
 export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -28,9 +36,25 @@ export default function SignInPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    alert('Signed in! (Check console for data)');
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      toast({
+        title: "Signed In!",
+        description: "Welcome back.",
+      });
+      router.push('/profile');
+    } catch (error: any) {
+      console.error("Sign in error:", error);
+      toast({
+        variant: 'destructive',
+        title: "Uh oh! Something went wrong.",
+        description: error.message || "There was a problem with your request.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -50,7 +74,7 @@ export default function SignInPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="name@example.com" {...field} />
+                      <Input placeholder="name@example.com" {...field} disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -68,6 +92,7 @@ export default function SignInPage() {
                           type={showPassword ? 'text' : 'password'}
                           placeholder="********"
                           {...field}
+                          disabled={isLoading}
                         />
                         <Button
                           type="button"
@@ -84,7 +109,9 @@ export default function SignInPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full font-semibold">Sign In</Button>
+              <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
+                {isLoading ? 'Signing In...' : 'Sign In'}
+              </Button>
             </form>
           </Form>
           <div className="mt-6 text-center text-sm">
