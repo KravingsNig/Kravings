@@ -20,6 +20,7 @@ const formSchema = z.object({
   businessName: z.string().optional(),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
+  confirmPassword: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
   referralCode: z.string().optional(),
   isVendor: z.boolean().default(false),
 }).refine(data => !data.isVendor ? data.username && data.username.length >= 2 : true, {
@@ -28,10 +29,14 @@ const formSchema = z.object({
 }).refine(data => data.isVendor ? data.businessName && data.businessName.length >= 2 : true, {
   message: 'Business name must be at least 2 characters.',
   path: ['businessName'],
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
 });
 
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,6 +47,7 @@ export default function SignUpPage() {
       businessName: '',
       email: '',
       password: '',
+      confirmPassword: '',
       referralCode: '',
       isVendor: false,
     },
@@ -93,7 +99,7 @@ export default function SignUpPage() {
                       <FormItem className="flex-1">
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="John" {...field} />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -106,7 +112,7 @@ export default function SignUpPage() {
                       <FormItem className="flex-1">
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Doe" {...field} />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -122,7 +128,7 @@ export default function SignUpPage() {
                     <FormItem>
                       <FormLabel>Business Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="My Awesome Food Truck" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -137,7 +143,7 @@ export default function SignUpPage() {
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
-                          <Input placeholder="foodlover123" {...field} />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -150,7 +156,7 @@ export default function SignUpPage() {
                       <FormItem>
                         <FormLabel>Referral Code (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter referral code" {...field} />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -166,7 +172,7 @@ export default function SignUpPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="name@example.com" {...field} />
+                      <Input type="email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -193,6 +199,34 @@ export default function SignUpPage() {
                           onClick={() => setShowPassword(!showPassword)}
                         >
                           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          placeholder="********"
+                          {...field}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        >
+                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                         </Button>
                       </div>
                     </FormControl>
