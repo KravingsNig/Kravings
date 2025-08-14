@@ -6,19 +6,21 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useState } from 'react';
+import { Switch } from '@/components/ui/switch';
 
 const addProductFormSchema = z.object({
   name: z.string().min(3, { message: 'Product name must be at least 3 characters.' }),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
+  details: z.string().min(10, { message: 'Details must be at least 10 characters.' }),
   price: z.coerce.number().positive({ message: 'Price must be a positive number.' }),
-  image: z.any().refine((file) => file?.length == 1, 'Product image is required.'),
+  image: z.any().refine((files) => files?.length == 1, 'Product image is required.'),
+  availability: z.boolean().default(true),
 });
 
 type AddProductFormValues = z.infer<typeof addProductFormSchema>;
@@ -33,8 +35,9 @@ export default function AddProductPage() {
     resolver: zodResolver(addProductFormSchema),
     defaultValues: {
       name: '',
-      description: '',
+      details: '',
       price: 0,
+      availability: true,
     },
     mode: 'onChange',
   });
@@ -96,7 +99,7 @@ export default function AddProductPage() {
                   <FormItem>
                     <FormLabel>Product Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Gourmet Burger" {...field} />
+                      <Input placeholder="Jollof Rice" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -104,12 +107,12 @@ export default function AddProductPage() {
               />
               <FormField
                 control={form.control}
-                name="description"
+                name="details"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Product Description</FormLabel>
+                    <FormLabel>Details</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="A delicious burger with all the fixings..." {...field} />
+                      <Textarea placeholder="A delicious pot of party jollof with all the fixings..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -120,9 +123,9 @@ export default function AddProductPage() {
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price ($)</FormLabel>
+                    <FormLabel>Price (₦)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="9.99" {...field} />
+                      <Input type="number" step="100" placeholder="2500" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -142,6 +145,26 @@ export default function AddProductPage() {
                     </FormItem>
                   );
                 }}
+              />
+              <FormField
+                control={form.control}
+                name="availability"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Available for Sale</FormLabel>
+                      <FormDescription>
+                        Set whether this product is currently available to customers.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
 
               <Button type="submit" className="font-semibold" disabled={isLoading}>

@@ -29,7 +29,7 @@ export default function VendorDashboardPage() {
             <CardDescription>Your current balance and transactions.</CardDescription>
           </CardHeader>
           <CardContent>
-             <p className="text-2xl font-bold">$0.00</p>
+             <p className="text-2xl font-bold">₦0.00</p>
              <Button variant="outline" className="mt-4">Manage Wallet</Button>
           </CardContent>
         </Card>

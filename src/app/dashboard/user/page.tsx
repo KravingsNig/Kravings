@@ -16,7 +16,7 @@ export default function UserDashboardPage() {
             <CardDescription>Your current balance and transactions.</CardDescription>
           </CardHeader>
           <CardContent>
-             <p className="text-2xl font-bold">$0.00</p>
+             <p className="text-2xl font-bold">₦0.00</p>
              <Button variant="outline" className="mt-4">Manage Wallet</Button>
           </CardContent>
         </Card>
@@ -24,7 +24,7 @@ export default function UserDashboardPage() {
           <CardHeader>
             <CardTitle>Order History</CardTitle>
              <CardDescription>Review your past orders.</CardDescription>
-          </CardHeader>
+          </Header>
           <CardContent>
              <div className="text-center text-muted-foreground py-8">
               <p>You haven't placed any orders yet.</p>

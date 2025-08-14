@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { updateEmail, updatePhoneNumber, PhoneAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { LoaderCircle } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
+import { Textarea } from '@/components/ui/textarea';
 
 const profileFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -23,6 +24,7 @@ const profileFormSchema = z.object({
   lastName: z.string().min(2, { message: 'Last name must be at least 2 characters.' }),
   username: z.string().optional(),
   businessName: z.string().optional(),
+  address: z.string().min(10, { message: 'Address must be at least 10 characters.' }).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -31,6 +33,7 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 export default function ProfilePage() {
   const { toast } = useToast();
   const { user, userData, loading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -41,6 +44,7 @@ export default function ProfilePage() {
       lastName: '',
       username: '',
       businessName: '',
+      address: '',
     },
     mode: 'onChange',
   });
@@ -49,11 +53,12 @@ export default function ProfilePage() {
     if (userData) {
       form.reset({
         email: userData.email || '',
-        phone: user?.phoneNumber || '',
+        phone: user?.phoneNumber || userData.phone || '',
         firstName: userData.firstName || '',
         lastName: userData.lastName || '',
         username: userData.username || '',
         businessName: userData.businessName || '',
+        address: userData.address || '',
       });
     }
   }, [userData, user, form]);
@@ -67,19 +72,26 @@ export default function ProfilePage() {
         });
         return;
     }
+    setIsSubmitting(true);
     try {
         const userDocRef = doc(db, 'users', user.uid);
+        const updates: any = {};
         
-        // Update Email in Firebase Auth and Firestore
         if (data.email && data.email !== user.email) {
             await updateEmail(user, data.email);
-            await updateDoc(userDocRef, { email: data.email });
+            updates.email = data.email;
         }
 
-        // Update Phone Number
-        if (data.phone && data.phone !== user.phoneNumber) {
-            // This is a simplified flow. A real app would require phone verification.
-            await updateDoc(userDocRef, { phone: data.phone });
+        if (data.phone && data.phone !== (user.phoneNumber || userData.phone)) {
+            updates.phone = data.phone;
+        }
+
+        if (data.address && data.address !== userData.address) {
+            updates.address = data.address;
+        }
+
+        if (Object.keys(updates).length > 0) {
+           await updateDoc(userDocRef, updates);
         }
 
         toast({
@@ -92,6 +104,8 @@ export default function ProfilePage() {
             title: "Uh oh! Something went wrong.",
             description: error.message || "Could not update your profile.",
         });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -209,7 +223,25 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="font-semibold">Update Profile</Button>
+               <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="123 Main Street, Lagos, Nigeria" {...field} />
+                    </FormControl>
+                     <FormDescription>
+                      Your delivery address.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="font-semibold" disabled={isSubmitting}>
+                {isSubmitting ? 'Updating...' : 'Update Profile'}
+                </Button>
             </form>
           </Form>
         </CardContent>
