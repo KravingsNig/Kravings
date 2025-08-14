@@ -3,6 +3,7 @@ import { ShoppingCart, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { KravingsLogo } from '@/components/kravings-logo';
+import { ModeToggle } from '@/components/mode-toggle';
 
 export function Header() {
   const cartItemCount = 3; // Mocked value
@@ -10,7 +11,6 @@ export function Header() {
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/signin', label: 'Sign In' },
-    { href: '/signup', label: 'Sign Up' },
     { href: '/profile', label: 'Profile' },
   ];
 
@@ -30,7 +30,7 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" aria-label="Shopping Cart" className="relative">
             <ShoppingCart className="h-5 w-5" />
             {cartItemCount > 0 && (
@@ -39,6 +39,8 @@ export function Header() {
               </span>
             )}
           </Button>
+
+          <ModeToggle />
 
           <Sheet>
             <SheetTrigger asChild>
