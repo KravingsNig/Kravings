@@ -7,9 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { AuthProvider, useAuth } from '@/hooks/use-auth';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { AuthProvider } from '@/hooks/use-auth';
 
 const featuredVendors = [
   { id: '1', name: 'Gourmet Burgers', description: 'Juicy, handcrafted burgers made with love.', imageUrl: 'https://placehold.co/600x400', hint: 'burger shop' },
@@ -22,15 +20,6 @@ const featuredVendors = [
 
 
 function HomeComponent() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && user) {
-      router.push('/profile');
-    }
-  }, [user, loading, router]);
-
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <section className="mb-12 text-center">
