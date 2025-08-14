@@ -2,10 +2,15 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,6 +42,9 @@ const formSchema = z.object({
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -55,9 +63,40 @@ export default function SignUpPage() {
 
   const isVendor = form.watch('isVendor');
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    alert('Account created! (Check console for data) You would be redirected to phone verification.');
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    try {
+      const { email, password, firstName, lastName, isVendor, businessName, username } = values;
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        firstName,
+        lastName,
+        email,
+        isVendor,
+        ...(isVendor ? { businessName } : { username }),
+        createdAt: new Date(),
+      });
+
+      toast({
+        title: "Account Created!",
+        description: "You've successfully signed up.",
+      });
+
+      router.push('/profile');
+
+    } catch (error: any) {
+      console.error("Sign up error:", error);
+      toast({
+        variant: 'destructive',
+        title: "Uh oh! Something went wrong.",
+        description: error.message || "There was a problem with your request.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -190,6 +229,7 @@ export default function SignUpPage() {
                           type={showPassword ? 'text' : 'password'}
                           placeholder="********"
                           {...field}
+                          disabled={isLoading}
                         />
                         <Button
                           type="button"
@@ -218,6 +258,7 @@ export default function SignUpPage() {
                           type={showConfirmPassword ? 'text' : 'password'}
                           placeholder="********"
                           {...field}
+                          disabled={isLoading}
                         />
                         <Button
                           type="button"
@@ -235,7 +276,9 @@ export default function SignUpPage() {
                 )}
               />
               
-              <Button type="submit" className="w-full font-semibold">Create Account</Button>
+              <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
+                {isLoading ? 'Creating Account...' : 'Create Account'}
+              </Button>
             </form>
           </Form>
           <div className="mt-6 text-center text-sm">
