@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Menu, LogOut } from 'lucide-react';
+import { ShoppingCart, Menu, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { KravingsLogo } from '@/components/kravings-logo';
@@ -42,9 +42,14 @@ export function Header() {
             </Link>
           ))}
           {user && (
-            <Link href="/profile" className="text-foreground/60 transition-colors hover:text-foreground/80">
-              Profile
-            </Link>
+            <>
+              <Link href="/profile" className="text-foreground/60 transition-colors hover:text-foreground/80">
+                Profile
+              </Link>
+              <Link href="/dashboard" className="text-foreground/60 transition-colors hover:text-foreground/80">
+                Dashboard
+              </Link>
+            </>
           )}
         </nav>
 
@@ -88,9 +93,14 @@ export function Header() {
                   </Link>
                 ))}
                  {user && (
-                  <Link href="/profile" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
-                    Profile
-                  </Link>
+                  <>
+                    <Link href="/profile" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                      Profile
+                    </Link>
+                     <Link href="/dashboard" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                      Dashboard
+                    </Link>
+                  </>
                 )}
               </div>
             </SheetContent>
