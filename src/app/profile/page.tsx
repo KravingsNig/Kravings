@@ -88,62 +88,90 @@ export default function ProfilePage() {
     try {
         const userDocRef = doc(db, 'users', user.uid);
         const updates: any = {};
+        let hasChanges = false;
         
         if (data.email && data.email !== user.email) {
             await updateEmail(user, data.email);
             updates.email = data.email;
+            hasChanges = true;
         }
 
         if (data.phone !== undefined && data.phone !== (user.phoneNumber || userData.phone)) {
             updates.phone = data.phone;
+            hasChanges = true;
         }
 
         if (data.address !== undefined && data.address !== userData.address) {
             updates.address = data.address;
+            hasChanges = true;
         }
         
         if (userData.isVendor) {
             if (data.businessDescription !== undefined && data.businessDescription !== userData.businessDescription) {
                 updates.businessDescription = data.businessDescription;
-            }
-            if (data.displayPicture && data.displayPicture.length > 0) {
-                const file = data.displayPicture[0];
-                const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
-                
-                const uploadTask = uploadBytesResumable(storageRef, file);
-
-                await new Promise<void>((resolve, reject) => {
-                    uploadTask.on('state_changed',
-                        (snapshot) => {
-                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                            setUploadProgress(progress);
-                        },
-                        (error) => {
-                            console.error("Upload failed:", error);
-                            reject(error);
-                        },
-                        async () => {
-                            const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-                            updates.imageUrl = imageUrl;
-                            resolve();
-                        }
-                    );
-                });
+                hasChanges = true;
             }
         }
 
+        const hasImageToUpload = userData.isVendor && data.displayPicture && data.displayPicture.length > 0;
 
-        if (Object.keys(updates).length > 0) {
-           await updateDoc(userDocRef, updates);
-           toast({
-             title: "Profile updated!",
-             description: "Your information has been successfully saved.",
-           });
-        } else {
+        if (hasChanges && !hasImageToUpload) {
+            await updateDoc(userDocRef, updates);
             toast({
+              title: "Profile updated!",
+              description: "Your information has been successfully saved.",
+            });
+        } else if (!hasChanges && !hasImageToUpload) {
+             toast({
               title: "No changes",
               description: "You haven't made any changes to your profile.",
             });
+        }
+        
+        if (hasImageToUpload) {
+            const file = data.displayPicture[0];
+            const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            uploadTask.on('state_changed',
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    setUploadProgress(progress);
+                },
+                (error) => {
+                    console.error("Upload failed:", error);
+                    toast({
+                        variant: "destructive",
+                        title: "Image upload failed.",
+                        description: error.message,
+                    });
+                    setIsSubmitting(false); // Stop submitting on error
+                },
+                async () => {
+                    // Upload complete, get download URL and update Firestore
+                    try {
+                        const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                        updates.imageUrl = imageUrl;
+                        await updateDoc(userDocRef, updates);
+                        toast({
+                            title: "Profile updated!",
+                            description: "Your information has been successfully saved.",
+                        });
+                    } catch (error: any) {
+                         toast({
+                            variant: "destructive",
+                            title: "Uh oh! Something went wrong.",
+                            description: error.message || "Could not save your updated profile.",
+                        });
+                    } finally {
+                        setIsSubmitting(false);
+                        setUploadProgress(null);
+                    }
+                }
+            );
+            // If we are only uploading an image, we should not stop the loading here.
+            // The loading state will be stopped inside the upload complete handler.
+            return; 
         }
 
     } catch(error: any) {
@@ -152,7 +180,11 @@ export default function ProfilePage() {
             title: "Uh oh! Something went wrong.",
             description: error.message || "Could not update your profile.",
         });
-    } finally {
+    }
+
+    // Only set submitting to false here if we are not uploading an image
+    // as that case is handled by the upload task listeners.
+    if (!hasImageToUpload) {
       setIsSubmitting(false);
       setUploadProgress(null);
     }
