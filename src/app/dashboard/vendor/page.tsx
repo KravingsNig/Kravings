@@ -1,7 +1,10 @@
 
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import Link from "next/link";
 
 export default function VendorDashboardPage() {
   return (
@@ -11,9 +14,11 @@ export default function VendorDashboardPage() {
           <h1 className="text-3xl font-bold font-headline">Vendor Dashboard</h1>
           <p className="text-muted-foreground">Manage your products and wallet.</p>
         </div>
-        <Button>
-          <PlusCircle className="mr-2" />
-          Add New Product
+        <Button asChild>
+          <Link href="/dashboard/vendor/add-product">
+            <PlusCircle className="mr-2" />
+            Add New Product
+          </Link>
         </Button>
       </div>
 
@@ -36,7 +41,9 @@ export default function VendorDashboardPage() {
           <CardContent>
             <div className="text-center text-muted-foreground py-8">
               <p>You haven't added any products yet.</p>
-              <Button variant="link" className="mt-2">Add your first product</Button>
+               <Button variant="link" asChild className="mt-2">
+                 <Link href="/dashboard/vendor/add-product">Add your first product</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
