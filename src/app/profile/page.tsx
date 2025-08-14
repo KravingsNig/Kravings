@@ -15,8 +15,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { LoaderCircle } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
 
 const profileFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -37,6 +38,8 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const { user, userData, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -80,6 +83,8 @@ export default function ProfilePage() {
         return;
     }
     setIsSubmitting(true);
+    setUploadProgress(null);
+    
     try {
         const userDocRef = doc(db, 'users', user.uid);
         const updates: any = {};
@@ -89,36 +94,58 @@ export default function ProfilePage() {
             updates.email = data.email;
         }
 
-        if (data.phone && data.phone !== (user.phoneNumber || userData.phone)) {
+        if (data.phone !== undefined && data.phone !== (user.phoneNumber || userData.phone)) {
             updates.phone = data.phone;
         }
 
-        if (data.address && data.address !== userData.address) {
+        if (data.address !== undefined && data.address !== userData.address) {
             updates.address = data.address;
         }
         
         if (userData.isVendor) {
-            if (data.businessDescription && data.businessDescription !== userData.businessDescription) {
+            if (data.businessDescription !== undefined && data.businessDescription !== userData.businessDescription) {
                 updates.businessDescription = data.businessDescription;
             }
             if (data.displayPicture && data.displayPicture.length > 0) {
                 const file = data.displayPicture[0];
                 const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
-                await uploadBytes(storageRef, file);
-                const imageUrl = await getDownloadURL(storageRef);
-                updates.imageUrl = imageUrl;
+                
+                const uploadTask = uploadBytesResumable(storageRef, file);
+
+                await new Promise<void>((resolve, reject) => {
+                    uploadTask.on('state_changed',
+                        (snapshot) => {
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            setUploadProgress(progress);
+                        },
+                        (error) => {
+                            console.error("Upload failed:", error);
+                            reject(error);
+                        },
+                        async () => {
+                            const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                            updates.imageUrl = imageUrl;
+                            resolve();
+                        }
+                    );
+                });
             }
         }
 
 
         if (Object.keys(updates).length > 0) {
            await updateDoc(userDocRef, updates);
+           toast({
+             title: "Profile updated!",
+             description: "Your information has been successfully saved.",
+           });
+        } else {
+            toast({
+              title: "No changes",
+              description: "You haven't made any changes to your profile.",
+            });
         }
 
-        toast({
-          title: "Profile updated!",
-          description: "Your information has been successfully saved.",
-        });
     } catch(error: any) {
          toast({
             variant: "destructive",
@@ -127,6 +154,7 @@ export default function ProfilePage() {
         });
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   }
 
@@ -218,7 +246,7 @@ export default function ProfilePage() {
                         <FormItem>
                             <FormLabel>Display Picture</FormLabel>
                             <FormControl>
-                            <Input type="file" accept="image/*" {...imageRef} />
+                            <Input type="file" accept="image/*" {...imageRef} disabled={isSubmitting} />
                             </FormControl>
                             <FormDescription>
                                This will be displayed on your vendor card on the homepage.
@@ -228,6 +256,9 @@ export default function ProfilePage() {
                         );
                     }}
                 />
+                {uploadProgress !== null && (
+                    <Progress value={uploadProgress} className="w-full" />
+                )}
                 </>
               ) : (
                  <FormField
@@ -294,7 +325,14 @@ export default function ProfilePage() {
                 )}
               />
               <Button type="submit" className="font-semibold" disabled={isSubmitting}>
-                {isSubmitting ? 'Updating...' : 'Update Profile'}
+                {isSubmitting ? (
+                    <>
+                        <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                    </>
+                 ) : (
+                    'Update Profile'
+                 )}
                 </Button>
             </form>
           </Form>
