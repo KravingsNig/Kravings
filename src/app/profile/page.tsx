@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useEffect } from 'react';
-
+import { updateEmail, updatePhoneNumber, PhoneAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { LoaderCircle } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 
 const profileFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -69,20 +69,28 @@ export default function ProfilePage() {
     }
     try {
         const userDocRef = doc(db, 'users', user.uid);
-        await updateDoc(userDocRef, {
-            firstName: data.firstName,
-            lastName: data.lastName,
-            ...(userData.isVendor ? { businessName: data.businessName } : { username: data.username }),
-        });
+        
+        // Update Email in Firebase Auth and Firestore
+        if (data.email && data.email !== user.email) {
+            await updateEmail(user, data.email);
+            await updateDoc(userDocRef, { email: data.email });
+        }
+
+        // Update Phone Number
+        if (data.phone && data.phone !== user.phoneNumber) {
+            // This is a simplified flow. A real app would require phone verification.
+            await updateDoc(userDocRef, { phone: data.phone });
+        }
+
         toast({
           title: "Profile updated!",
           description: "Your information has been successfully saved.",
         });
-    } catch(error) {
+    } catch(error: any) {
          toast({
             variant: "destructive",
             title: "Uh oh! Something went wrong.",
-            description: "Could not update your profile.",
+            description: error.message || "Could not update your profile.",
         });
     }
   }
@@ -118,7 +126,7 @@ export default function ProfilePage() {
                       <FormItem className="flex-1">
                         <FormLabel>First Name</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} disabled />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -131,7 +139,7 @@ export default function ProfilePage() {
                       <FormItem className="flex-1">
                         <FormLabel>Last Name</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} disabled />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -147,7 +155,7 @@ export default function ProfilePage() {
                     <FormItem>
                       <FormLabel>Business Name</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} disabled />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -161,7 +169,7 @@ export default function ProfilePage() {
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} disabled />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -176,10 +184,10 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="your.email@example.com" {...field} disabled />
+                      <Input placeholder="your.email@example.com" {...field} />
                     </FormControl>
                     <FormDescription>
-                      You cannot change your email address.
+                      Changing your email will update your login credentials.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -192,10 +200,10 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="Your phone number" {...field} disabled/>
+                      <Input placeholder="Your phone number" {...field} />
                     </FormControl>
                     <FormDescription>
-                      Phone number cannot be changed here.
+                      A verification might be required to change your phone number.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
