@@ -1,42 +1,101 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
+import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { LoaderCircle } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const profileFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
-  phone: z.string().min(10, { message: "Please enter a valid phone number." }),
+  phone: z.string().optional(),
+  firstName: z.string().min(2, { message: 'First name must be at least 2 characters.' }),
+  lastName: z.string().min(2, { message: 'Last name must be at least 2 characters.' }),
+  username: z.string().optional(),
+  businessName: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-const defaultValues: Partial<ProfileFormValues> = {
-  email: 'user@kravings.com',
-  phone: '123-456-7890',
-};
 
 export default function ProfilePage() {
   const { toast } = useToast();
+  const { user, userData, loading } = useAuth();
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues,
+    defaultValues: {
+      email: '',
+      phone: '',
+      firstName: '',
+      lastName: '',
+      username: '',
+      businessName: '',
+    },
     mode: 'onChange',
   });
 
-  function onSubmit(data: ProfileFormValues) {
-    toast({
-      title: "Profile updated!",
-      description: "Your information has been successfully saved.",
-    });
-    console.log(data);
+  useEffect(() => {
+    if (userData) {
+      form.reset({
+        email: userData.email || '',
+        phone: user?.phoneNumber || '',
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        username: userData.username || '',
+        businessName: userData.businessName || '',
+      });
+    }
+  }, [userData, user, form]);
+
+  async function onSubmit(data: ProfileFormValues) {
+    if (!user) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "You must be logged in to update your profile.",
+        });
+        return;
+    }
+    try {
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            ...(userData.isVendor ? { businessName: data.businessName } : { username: data.username }),
+        });
+        toast({
+          title: "Profile updated!",
+          description: "Your information has been successfully saved.",
+        });
+    } catch(error) {
+         toast({
+            variant: "destructive",
+            title: "Uh oh! Something went wrong.",
+            description: "Could not update your profile.",
+        });
+    }
+  }
+
+  if (loading) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-4">
+                <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+                <p className="font-headline text-lg text-primary/80">Loading Profile...</p>
+            </div>
+        </div>
+    );
   }
 
   return (
@@ -51,6 +110,65 @@ export default function ProfilePage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <div className="flex gap-4">
+                 <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              </div>
+
+              {userData?.isVendor ? (
+                 <FormField
+                  control={form.control}
+                  name="businessName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Business Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                 <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              )}
+
               <FormField
                 control={form.control}
                 name="email"
@@ -58,10 +176,10 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="your.email@example.com" {...field} />
+                      <Input placeholder="your.email@example.com" {...field} disabled />
                     </FormControl>
                     <FormDescription>
-                      This is the email address you use to log in.
+                      You cannot change your email address.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -74,10 +192,10 @@ export default function ProfilePage() {
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="Your phone number" {...field} />
+                      <Input placeholder="Your phone number" {...field} disabled/>
                     </FormControl>
                     <FormDescription>
-                      Used for verification and notifications.
+                      Phone number cannot be changed here.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
