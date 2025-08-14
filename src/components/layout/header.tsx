@@ -1,28 +1,31 @@
+'use client';
+
 import Link from 'next/link';
-import { ShoppingCart, Menu } from 'lucide-react';
+import { ShoppingCart, Menu, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { KravingsLogo } from '@/components/kravings-logo';
 import { ModeToggle } from '@/components/mode-toggle';
+import { useAuth } from '@/hooks/use-auth';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 export function Header() {
+  const { user } = useAuth();
+  const router = useRouter();
   const cartItemCount = 3; // Mocked value
-  const isSignedIn = false; // Mocked value for authentication state
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push('/');
+  };
 
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/about', label: 'About' },
     { href: '/contact', label: 'Contact Us' },
   ];
-
-  const authLinks = [
-    { href: '/profile', label: 'Profile', signedIn: true },
-    { href: '/signin', label: 'Sign In', signedIn: false },
-  ];
-
-  const allNavLinks = [...navLinks, ...authLinks.filter(link => link.signedIn === isSignedIn)];
-  const mobileNavLinks = [...navLinks, ...authLinks.filter(link => link.signedIn ? isSignedIn : true)];
-
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -33,11 +36,16 @@ export function Header() {
         </Link>
         
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-          {allNavLinks.map(link => (
+          {navLinks.map(link => (
             <Link key={link.href} href={link.href} className="text-foreground/60 transition-colors hover:text-foreground/80">
               {link.label}
             </Link>
           ))}
+          {user && (
+            <Link href="/profile" className="text-foreground/60 transition-colors hover:text-foreground/80">
+              Profile
+            </Link>
+          )}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -51,6 +59,15 @@ export function Header() {
           </Button>
 
           <ModeToggle />
+          
+          {user ? (
+             <Button variant="ghost" size="icon" aria-label="Sign Out" onClick={handleSignOut}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button onClick={() => router.push('/signin')}>Sign In</Button>
+          )}
+
 
           <Sheet>
             <SheetTrigger asChild>
@@ -65,11 +82,16 @@ export function Header() {
                     <KravingsLogo />
                     <span className="font-headline text-xl font-semibold text-primary">Kravings</span>
                 </Link>
-                {mobileNavLinks.map(link => (
+                {navLinks.map(link => (
                   <Link key={link.href} href={link.href} className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
                     {link.label}
                   </Link>
                 ))}
+                 {user && (
+                  <Link href="/profile" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                    Profile
+                  </Link>
+                )}
               </div>
             </SheetContent>
           </Sheet>

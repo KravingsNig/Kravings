@@ -1,4 +1,3 @@
-// src/hooks/use-auth.tsx
 'use client';
 
 import { useEffect, useState, createContext, useContext, ReactNode } from 'react';
@@ -6,6 +5,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import Loading from '@/app/loading';
 
 interface AuthContextType {
   user: User | null;
@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, userData, loading }}>
-      {children}
+      {loading ? <Loading /> : children}
     </AuthContext.Provider>
   );
 };

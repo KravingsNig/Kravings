@@ -85,7 +85,7 @@ export default function SignUpPage() {
         description: "You've successfully signed up.",
       });
 
-      router.push('/profile');
+      router.push('/');
 
     } catch (error: any) {
       console.error("Sign up error:", error);
