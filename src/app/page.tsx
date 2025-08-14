@@ -37,7 +37,7 @@ function HomeComponent() {
             id: doc.id,
             name: data.businessName || 'Unnamed Vendor',
             description: data.businessDescription || 'No description available.',
-            imageUrl: 'https://placehold.co/600x400',
+            imageUrl: data.imageUrl || 'https://placehold.co/600x400',
             hint: data.businessName?.toLowerCase().split(' ').slice(0, 2).join(' ') || 'vendor',
           });
         });

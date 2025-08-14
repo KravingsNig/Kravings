@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useEffect, useState } from 'react';
-import { updateEmail, updatePhoneNumber, PhoneAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { updateEmail } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
@@ -14,7 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { LoaderCircle } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
 
 const profileFormSchema = z.object({
@@ -25,6 +26,8 @@ const profileFormSchema = z.object({
   username: z.string().optional(),
   businessName: z.string().optional(),
   address: z.string().min(10, { message: 'Address must be at least 10 characters.' }).optional(),
+  businessDescription: z.string().optional(),
+  displayPicture: z.any().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -45,9 +48,12 @@ export default function ProfilePage() {
       username: '',
       businessName: '',
       address: '',
+      businessDescription: '',
     },
     mode: 'onChange',
   });
+  
+  const imageRef = form.register("displayPicture");
 
   useEffect(() => {
     if (userData) {
@@ -59,6 +65,7 @@ export default function ProfilePage() {
         username: userData.username || '',
         businessName: userData.businessName || '',
         address: userData.address || '',
+        businessDescription: userData.businessDescription || '',
       });
     }
   }, [userData, user, form]);
@@ -89,6 +96,20 @@ export default function ProfilePage() {
         if (data.address && data.address !== userData.address) {
             updates.address = data.address;
         }
+        
+        if (userData.isVendor) {
+            if (data.businessDescription && data.businessDescription !== userData.businessDescription) {
+                updates.businessDescription = data.businessDescription;
+            }
+            if (data.displayPicture && data.displayPicture.length > 0) {
+                const file = data.displayPicture[0];
+                const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
+                await uploadBytes(storageRef, file);
+                const imageUrl = await getDownloadURL(storageRef);
+                updates.imageUrl = imageUrl;
+            }
+        }
+
 
         if (Object.keys(updates).length > 0) {
            await updateDoc(userDocRef, updates);
@@ -162,6 +183,7 @@ export default function ProfilePage() {
               </div>
 
               {userData?.isVendor ? (
+                <>
                  <FormField
                   control={form.control}
                   name="businessName"
@@ -175,6 +197,38 @@ export default function ProfilePage() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                    control={form.control}
+                    name="businessDescription"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Business Description</FormLabel>
+                        <FormControl>
+                            <Textarea placeholder="Tell us about your business..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                 />
+                 <FormField
+                    control={form.control}
+                    name="displayPicture"
+                    render={({ field }) => {
+                        return (
+                        <FormItem>
+                            <FormLabel>Display Picture</FormLabel>
+                            <FormControl>
+                            <Input type="file" accept="image/*" {...imageRef} />
+                            </FormControl>
+                            <FormDescription>
+                               This will be displayed on your vendor card on the homepage.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                        );
+                    }}
+                />
+                </>
               ) : (
                  <FormField
                     control={form.control}
