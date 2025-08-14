@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 
 const formSchema = z.object({
   firstName: z.string().min(2, { message: 'First name must be at least 2 characters.' }),
@@ -26,6 +27,7 @@ const formSchema = z.object({
   businessName: z.string().optional(),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   phone: z.string().optional(),
+  address: z.string().optional(),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
   confirmPassword: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
   referralCode: z.string().optional(),
@@ -57,6 +59,7 @@ export default function SignUpPage() {
       businessName: '',
       email: '',
       phone: '',
+      address: '',
       password: '',
       confirmPassword: '',
       referralCode: '',
@@ -69,7 +72,7 @@ export default function SignUpPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      const { email, password, firstName, lastName, isVendor, businessName, username, phone } = values;
+      const { email, password, firstName, lastName, isVendor, businessName, username, phone, address } = values;
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
@@ -79,6 +82,7 @@ export default function SignUpPage() {
         lastName,
         email,
         phone: phone || '',
+        address: address || '',
         isVendor,
         ...(isVendor ? { businessName } : { username }),
         createdAt: new Date(),
@@ -229,6 +233,19 @@ export default function SignUpPage() {
                     <FormLabel>Phone Number (Optional)</FormLabel>
                     <FormControl>
                       <Input type="tel" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="123 Main Street, Lagos, Nigeria" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
