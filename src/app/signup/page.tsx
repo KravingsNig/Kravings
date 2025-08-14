@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -24,6 +25,7 @@ const formSchema = z.object({
   username: z.string().optional(),
   businessName: z.string().optional(),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
+  phone: z.string().optional(),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
   confirmPassword: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
   referralCode: z.string().optional(),
@@ -54,6 +56,7 @@ export default function SignUpPage() {
       username: '',
       businessName: '',
       email: '',
+      phone: '',
       password: '',
       confirmPassword: '',
       referralCode: '',
@@ -66,7 +69,7 @@ export default function SignUpPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      const { email, password, firstName, lastName, isVendor, businessName, username } = values;
+      const { email, password, firstName, lastName, isVendor, businessName, username, phone } = values;
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
@@ -75,6 +78,7 @@ export default function SignUpPage() {
         firstName,
         lastName,
         email,
+        phone: phone || '',
         isVendor,
         ...(isVendor ? { businessName } : { username }),
         createdAt: new Date(),
@@ -212,6 +216,19 @@ export default function SignUpPage() {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number (Optional)</FormLabel>
+                    <FormControl>
+                      <Input type="tel" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
