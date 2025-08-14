@@ -7,12 +7,22 @@ import { ModeToggle } from '@/components/mode-toggle';
 
 export function Header() {
   const cartItemCount = 3; // Mocked value
+  const isSignedIn = false; // Mocked value for authentication state
 
   const navLinks = [
     { href: '/', label: 'Home' },
-    { href: '/signin', label: 'Sign In' },
-    { href: '/profile', label: 'Profile' },
+    { href: '/about', label: 'About' },
+    { href: '/contact', label: 'Contact Us' },
   ];
+
+  const authLinks = [
+    { href: '/profile', label: 'Profile', signedIn: true },
+    { href: '/signin', label: 'Sign In', signedIn: false },
+  ];
+
+  const allNavLinks = [...navLinks, ...authLinks.filter(link => link.signedIn === isSignedIn)];
+  const mobileNavLinks = [...navLinks, ...authLinks.filter(link => link.signedIn ? isSignedIn : true)];
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -23,7 +33,7 @@ export function Header() {
         </Link>
         
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-          {navLinks.map(link => (
+          {allNavLinks.map(link => (
             <Link key={link.href} href={link.href} className="text-foreground/60 transition-colors hover:text-foreground/80">
               {link.label}
             </Link>
@@ -55,7 +65,7 @@ export function Header() {
                     <KravingsLogo />
                     <span className="font-headline text-xl font-semibold text-primary">Kravings</span>
                 </Link>
-                {navLinks.map(link => (
+                {mobileNavLinks.map(link => (
                   <Link key={link.href} href={link.href} className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
                     {link.label}
                   </Link>

@@ -2,7 +2,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 const featuredVendors = [
   { id: '1', name: 'Gourmet Burgers', description: 'Juicy, handcrafted burgers made with love.', imageUrl: 'https://placehold.co/600x400', hint: 'burger shop' },
@@ -23,13 +24,15 @@ export default function Home() {
         <p className="mx-auto mt-4 max-w-2xl text-lg text-foreground/80">
           Discover local vendors and satisfy your deepest food cravings, all in one place.
         </p>
-        <div className="mt-8 flex justify-center gap-4">
-          <Button asChild size="lg" className="font-semibold">
-            <Link href="/signup">Get Started</Link>
-          </Button>
-          <Button asChild size="lg" variant="outline" className="font-semibold">
-            <Link href="#">Learn More</Link>
-          </Button>
+        <div className="mt-8 mx-auto max-w-lg">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search for vendors, food, or drinks..."
+              className="w-full rounded-full bg-background pl-10 pr-4 py-6 text-base shadow-md focus-visible:ring-primary/40"
+            />
+          </div>
         </div>
       </section>
 
