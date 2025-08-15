@@ -1,6 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function UserDashboardPage() {
   return (
@@ -17,18 +18,22 @@ export default function UserDashboardPage() {
           </CardHeader>
           <CardContent>
              <p className="text-2xl font-bold">₦0.00</p>
-             <Button variant="outline" className="mt-4">Manage Wallet</Button>
+             <Button asChild variant="outline" className="mt-4">
+              <Link href="/wallet">Manage Wallet</Link>
+             </Button>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle>Order History</CardTitle>
              <CardDescription>Review your past orders.</CardDescription>
-          </Header>
+          </CardHeader>
           <CardContent>
              <div className="text-center text-muted-foreground py-8">
               <p>You haven't placed any orders yet.</p>
-              <Button variant="link" className="mt-2">Start Shopping</Button>
+              <Button variant="link" asChild className="mt-2">
+                <Link href="/">Start Shopping</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>

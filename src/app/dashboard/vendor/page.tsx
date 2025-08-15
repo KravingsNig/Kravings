@@ -30,7 +30,9 @@ export default function VendorDashboardPage() {
           </CardHeader>
           <CardContent>
              <p className="text-2xl font-bold">₦0.00</p>
-             <Button variant="outline" className="mt-4">Manage Wallet</Button>
+             <Button asChild variant="outline" className="mt-4">
+               <Link href="/wallet">Manage Wallet</Link>
+             </Button>
           </CardContent>
         </Card>
          <Card className="lg:col-span-2">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,7 +15,7 @@ import { useRouter } from 'next/navigation';
 export function Header() {
   const { user } = useAuth();
   const router = useRouter();
-  const cartItemCount = 3; // Mocked value
+  const cartItemCount = 0; // Mocked value, will be replaced with real data
 
   const handleSignOut = async () => {
     await signOut(auth);
@@ -23,7 +24,7 @@ export function Header() {
 
   const navLinks = [
     { href: '/', label: 'Home' },
-    { href: '/about', label: 'About' },
+    // { href: '/about', label: 'About' },
     { href: '/contact', label: 'Contact Us' },
   ];
 
@@ -54,13 +55,15 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" aria-label="Shopping Cart" className="relative">
-            <ShoppingCart className="h-5 w-5" />
-            {cartItemCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
-                {cartItemCount}
-              </span>
-            )}
+          <Button asChild variant="ghost" size="icon" aria-label="Shopping Cart" className="relative">
+            <Link href="/cart">
+                <ShoppingCart className="h-5 w-5" />
+                {cartItemCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
+                    {cartItemCount}
+                </span>
+                )}
+            </Link>
           </Button>
 
           <ModeToggle />
