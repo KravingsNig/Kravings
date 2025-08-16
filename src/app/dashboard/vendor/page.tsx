@@ -7,7 +7,7 @@ import { PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ interface Product {
   price: number;
   imageUrl: string;
   approved: boolean;
+  createdAt: Timestamp;
 }
 
 export default function VendorDashboardPage() {
@@ -34,14 +35,17 @@ export default function VendorDashboardPage() {
       try {
         const q = query(
           collection(db, "products"), 
-          where("vendorId", "==", user.uid),
-          orderBy("createdAt", "desc")
+          where("vendorId", "==", user.uid)
         );
         const querySnapshot = await getDocs(q);
         const fetchedProducts: Product[] = [];
         querySnapshot.forEach((doc) => {
           fetchedProducts.push({ id: doc.id, ...doc.data() } as Product);
         });
+        
+        // Sort products by creation date on the client side
+        fetchedProducts.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+
         setProducts(fetchedProducts);
       } catch (error) {
         console.error("Error fetching vendor products: ", error);
@@ -50,7 +54,11 @@ export default function VendorDashboardPage() {
       }
     };
 
-    fetchProducts();
+    if (user) {
+        fetchProducts();
+    } else {
+        setLoading(false);
+    }
   }, [user]);
 
   return (
