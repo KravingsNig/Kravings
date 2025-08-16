@@ -18,6 +18,7 @@ import { db, storage } from '@/lib/firebase';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
+import Image from 'next/image';
 
 const profileFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -28,18 +29,24 @@ const profileFormSchema = z.object({
   businessName: z.string().optional(),
   address: z.string().min(10, { message: 'Address must be at least 10 characters.' }).optional(),
   businessDescription: z.string().optional(),
-  displayPicture: z.any().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
+const pictureFormSchema = z.object({
+  displayPicture: z.any().refine((files) => files?.length === 1, 'Please select an image.'),
+});
+
+type PictureFormValues = z.infer<typeof pictureFormSchema>;
+
 export default function ProfilePage() {
   const { toast } = useToast();
   const { user, userData, loading } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingDetails, setIsSubmittingDetails] = useState(false);
+  const [isSubmittingPicture, setIsSubmittingPicture] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  const form = useForm<ProfileFormValues>({
+  const detailsForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       email: '',
@@ -53,12 +60,14 @@ export default function ProfilePage() {
     },
     mode: 'onChange',
   });
-  
-  const imageRef = form.register("displayPicture");
 
+  const pictureForm = useForm<PictureFormValues>({
+    resolver: zodResolver(pictureFormSchema),
+  });
+  
   useEffect(() => {
     if (userData) {
-      form.reset({
+      detailsForm.reset({
         email: userData.email || '',
         phone: user?.phoneNumber || userData.phone || '',
         firstName: userData.firstName || '',
@@ -69,101 +78,79 @@ export default function ProfilePage() {
         businessDescription: userData.businessDescription || '',
       });
     }
-  }, [userData, user, form]);
+  }, [userData, user, detailsForm]);
 
-  async function uploadImageAndGetURL(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      if (!user) return reject(new Error("User not authenticated"));
-
-      const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        },
-        (error) => {
-          console.error("Upload failed:", error);
-          reject(error);
-        },
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          resolve(downloadURL);
-        }
-      );
-    });
-  }
-
-  async function onSubmit(data: ProfileFormValues) {
+  async function onDetailsSubmit(data: ProfileFormValues) {
     if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "You must be logged in to update your profile.",
-      });
+      toast({ variant: "destructive", title: "Error", description: "You must be logged in." });
       return;
     }
-    setIsSubmitting(true);
-    setUploadProgress(null);
+    setIsSubmittingDetails(true);
     
     try {
       const updates: any = {};
-      let hasChanges = false;
       
-      // --- 1. Collect textual changes ---
       if (data.email && data.email !== user.email) {
         await updateEmail(user, data.email);
         updates.email = data.email;
-        hasChanges = true;
       }
       if (data.phone !== undefined && data.phone !== (user.phoneNumber || userData.phone)) {
         updates.phone = data.phone;
-        hasChanges = true;
       }
       if (data.address !== undefined && data.address !== userData.address) {
         updates.address = data.address;
-        hasChanges = true;
       }
       if (userData.isVendor && data.businessDescription !== undefined && data.businessDescription !== userData.businessDescription) {
         updates.businessDescription = data.businessDescription;
-        hasChanges = true;
-      }
-
-      // --- 2. Handle Image Upload ---
-      const hasImageToUpload = userData.isVendor && data.displayPicture && data.displayPicture.length > 0;
-      if (hasImageToUpload) {
-        const file = data.displayPicture[0];
-        const imageUrl = await uploadImageAndGetURL(file);
-        updates.imageUrl = imageUrl;
-        hasChanges = true;
       }
       
-      // --- 3. Perform Firestore Update if there are changes ---
-      if (hasChanges) {
+      if (Object.keys(updates).length > 0) {
         const userDocRef = doc(db, 'users', user.uid);
         await updateDoc(userDocRef, updates);
-        toast({
-            title: "Profile updated!",
-            description: "Your information has been successfully saved.",
-        });
+        toast({ title: "Profile updated!", description: "Your information has been successfully saved." });
       } else {
-        toast({
-            title: "No changes",
-            description: "You haven't made any changes to your profile.",
-        });
+        toast({ title: "No changes", description: "You haven't made any changes to your profile." });
       }
 
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: error.message || "Could not update your profile.",
-      });
+      toast({ variant: "destructive", title: "Uh oh!", description: error.message || "Could not update profile." });
     } finally {
-      setIsSubmitting(false);
-      setUploadProgress(null);
+      setIsSubmittingDetails(false);
     }
+  }
+
+  async function onPictureSubmit(data: PictureFormValues) {
+    if (!user) {
+      toast({ variant: "destructive", title: "Error", description: "You must be logged in." });
+      return;
+    }
+    setIsSubmittingPicture(true);
+    setUploadProgress(null);
+
+    const file = data.displayPicture[0];
+    const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadProgress(progress);
+      },
+      (error) => {
+        console.error("Upload failed:", error);
+        toast({ variant: 'destructive', title: "Upload failed", description: error.message });
+        setIsSubmittingPicture(false);
+        setUploadProgress(null);
+      },
+      async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, { imageUrl: downloadURL });
+        toast({ title: "Picture updated!", description: "Your display picture has been changed." });
+        setIsSubmittingPicture(false);
+        pictureForm.reset();
+      }
+    );
   }
 
   if (loading) {
@@ -178,20 +165,65 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
-       <Card className="max-w-2xl mx-auto shadow-lg">
+    <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-2xl">
+      {userData?.isVendor && (
+        <Card className="mb-8 shadow-lg">
+           <CardHeader>
+            <CardTitle className="font-headline text-2xl">Display Picture</CardTitle>
+            <CardDescription>
+              This image is shown on your vendor card on the homepage.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-8 items-center">
+              <Image 
+                src={userData.imageUrl || 'https://placehold.co/150x150'} 
+                alt="Display Picture" 
+                width={150} 
+                height={150} 
+                className="rounded-lg object-cover aspect-square"
+              />
+              <Form {...pictureForm}>
+                <form onSubmit={pictureForm.handleSubmit(onPictureSubmit)} className="space-y-4 flex-1">
+                  <FormField
+                    control={pictureForm.control}
+                    name="displayPicture"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Upload a new picture</FormLabel>
+                        <FormControl>
+                          <Input type="file" accept="image/*" {...pictureForm.register("displayPicture")} disabled={isSubmittingPicture} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {uploadProgress !== null && (
+                      <Progress value={uploadProgress} className="w-full" />
+                  )}
+                  <Button type="submit" disabled={isSubmittingPicture}>
+                     {isSubmittingPicture ? 'Uploading...' : 'Upload Picture'}
+                  </Button>
+                </form>
+              </Form>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="font-headline text-2xl">Profile</CardTitle>
+          <CardTitle className="font-headline text-2xl">Profile Details</CardTitle>
           <CardDescription>
             Manage your account settings and contact information.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Form {...detailsForm}>
+            <form onSubmit={detailsForm.handleSubmit(onDetailsSubmit)} className="space-y-8">
               <div className="flex gap-4">
                  <FormField
-                    control={form.control}
+                    control={detailsForm.control}
                     name="firstName"
                     render={({ field }) => (
                       <FormItem className="flex-1">
@@ -204,7 +236,7 @@ export default function ProfilePage() {
                     )}
                   />
                   <FormField
-                    control={form.control}
+                    control={detailsForm.control}
                     name="lastName"
                     render={({ field }) => (
                       <FormItem className="flex-1">
@@ -221,7 +253,7 @@ export default function ProfilePage() {
               {userData?.isVendor ? (
                 <>
                  <FormField
-                  control={form.control}
+                  control={detailsForm.control}
                   name="businessName"
                   render={({ field }) => (
                     <FormItem>
@@ -234,7 +266,7 @@ export default function ProfilePage() {
                   )}
                 />
                 <FormField
-                    control={form.control}
+                    control={detailsForm.control}
                     name="businessDescription"
                     render={({ field }) => (
                         <FormItem>
@@ -246,31 +278,10 @@ export default function ProfilePage() {
                         </FormItem>
                     )}
                  />
-                 <FormField
-                    control={form.control}
-                    name="displayPicture"
-                    render={({ field }) => {
-                        return (
-                        <FormItem>
-                            <FormLabel>Display Picture</FormLabel>
-                            <FormControl>
-                            <Input type="file" accept="image/*" {...imageRef} disabled={isSubmitting} />
-                            </FormControl>
-                            <FormDescription>
-                               This will be displayed on your vendor card on the homepage.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                        );
-                    }}
-                />
-                {uploadProgress !== null && (
-                    <Progress value={uploadProgress} className="w-full" />
-                )}
                 </>
               ) : (
                  <FormField
-                    control={form.control}
+                    control={detailsForm.control}
                     name="username"
                     render={({ field }) => (
                       <FormItem>
@@ -285,7 +296,7 @@ export default function ProfilePage() {
               )}
 
               <FormField
-                control={form.control}
+                control={detailsForm.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
@@ -301,7 +312,7 @@ export default function ProfilePage() {
                 )}
               />
               <FormField
-                control={form.control}
+                control={detailsForm.control}
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
@@ -317,7 +328,7 @@ export default function ProfilePage() {
                 )}
               />
                <FormField
-                control={form.control}
+                control={detailsForm.control}
                 name="address"
                 render={({ field }) => (
                   <FormItem>
@@ -332,14 +343,14 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="font-semibold" disabled={isSubmitting}>
-                {isSubmitting ? (
+              <Button type="submit" className="font-semibold" disabled={isSubmittingDetails}>
+                {isSubmittingDetails ? (
                     <>
                         <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
+                        Updating Details...
                     </>
                  ) : (
-                    'Update Profile'
+                    'Update Details'
                  )}
                 </Button>
             </form>

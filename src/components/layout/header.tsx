@@ -69,12 +69,6 @@ export function Header() {
               Admin
             </Link>
           )}
-
-          {user && (
-             <Button variant="ghost" size="icon" aria-label="Sign Out" onClick={handleSignOut}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          )}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -93,6 +87,12 @@ export function Header() {
           
           {!user && (
             <Button className="hidden md:inline-flex" onClick={() => router.push('/signin')}>Sign In</Button>
+          )}
+
+          {user && (
+             <Button variant="ghost" size="icon" aria-label="Sign Out" onClick={handleSignOut}>
+              <LogOut className="h-5 w-5" />
+            </Button>
           )}
 
 
