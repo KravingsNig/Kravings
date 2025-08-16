@@ -17,7 +17,6 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
 import Image from 'next/image';
 
 const profileFormSchema = z.object({
@@ -44,7 +43,6 @@ export default function ProfilePage() {
   const { user, userData, loading } = useAuth();
   const [isSubmittingDetails, setIsSubmittingDetails] = useState(false);
   const [isSubmittingPicture, setIsSubmittingPicture] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const detailsForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -125,7 +123,6 @@ export default function ProfilePage() {
       return;
     }
     setIsSubmittingPicture(true);
-    setUploadProgress(null);
 
     const file = data.displayPicture[0];
     const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
@@ -133,14 +130,12 @@ export default function ProfilePage() {
 
     uploadTask.on('state_changed',
       (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(progress);
+        // We can monitor progress here if we re-add the progress bar
       },
       (error) => {
         console.error("Upload failed:", error);
         toast({ variant: 'destructive', title: "Upload failed", description: error.message });
         setIsSubmittingPicture(false);
-        setUploadProgress(null);
       },
       async () => {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
@@ -198,9 +193,6 @@ export default function ProfilePage() {
                       </FormItem>
                     )}
                   />
-                  {uploadProgress !== null && (
-                      <Progress value={uploadProgress} className="w-full" />
-                  )}
                   <Button type="submit" disabled={isSubmittingPicture}>
                      {isSubmittingPicture ? 'Uploading...' : 'Upload Picture'}
                   </Button>
@@ -360,5 +352,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
