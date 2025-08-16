@@ -4,34 +4,34 @@
 import Link from 'next/link';
 import { ShoppingCart, Menu, LogOut, LayoutDashboard, ShieldCheck, User, Wallet, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { KravingsLogo } from '@/components/kravings-logo';
 import { ModeToggle } from '@/components/mode-toggle';
 import { useAuth } from '@/hooks/use-auth';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { useCart } from '@/hooks/use-cart';
 
 export function Header() {
   const { user, userData } = useAuth();
   const router = useRouter();
-  const cartItemCount = 0; // Mocked value, will be replaced with real data
+  const { cartItemCount } = useCart();
 
   const handleSignOut = async () => {
     await signOut(auth);
     router.push('/');
   };
-
-  const navLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/about', label: 'About' },
-    { href: '/contact', label: 'Contact Us' },
-  ];
   
   const userLinks = [
-      { href: '/dashboard', label: 'Dashboard' },
-      { href: '/wallet', label: 'Wallet' },
-      { href: '/profile', label: 'Profile' },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/wallet', label: 'Wallet', icon: Wallet },
+      { href: '/profile', label: 'Profile', icon: User },
+  ];
+
+  const publicLinks = [
+    { href: '/about', label: 'About', icon: Info },
+    { href: '/contact', label: 'Contact Us', icon: Info },
   ]
 
   return (
@@ -57,18 +57,23 @@ export function Header() {
             </>
           )}
 
-          <Link href="/about" className="text-foreground/60 transition-colors hover:text-foreground/80">
-            About
-          </Link>
-          <Link href="/contact" className="text-foreground/60 transition-colors hover:text-foreground/80">
-            Contact Us
-          </Link>
+          {publicLinks.map(link => (
+              <Link key={link.href} href={link.href} className="text-foreground/60 transition-colors hover:text-foreground/80">
+                {link.label}
+              </Link>
+          ))}
           
           {user && userData?.isAdmin && (
             <Link href="/admin" className="flex items-center gap-1 text-foreground/60 transition-colors hover:text-foreground/80">
               <ShieldCheck className="h-4 w-4" />
               Admin
             </Link>
+          )}
+
+          {user && (
+             <Button variant="ghost" size="icon" aria-label="Sign Out" onClick={handleSignOut}>
+              <LogOut className="h-5 w-5" />
+            </Button>
           )}
         </nav>
 
@@ -86,12 +91,8 @@ export function Header() {
 
           <ModeToggle />
           
-          {user ? (
-             <Button variant="ghost" size="icon" aria-label="Sign Out" onClick={handleSignOut}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          ) : (
-            <Button onClick={() => router.push('/signin')}>Sign In</Button>
+          {!user && (
+            <Button className="hidden md:inline-flex" onClick={() => router.push('/signin')}>Sign In</Button>
           )}
 
 
@@ -103,39 +104,65 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right">
-              <div className="flex flex-col gap-6 pt-12">
-                <Link href="/" className="mb-4 flex items-center gap-2">
-                    <KravingsLogo />
-                    <span className="font-headline text-xl font-semibold text-primary">Kravings</span>
-                </Link>
-                
-                <Link href="/" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
-                    Home
-                </Link>
-
-                 {user && (
-                  <>
-                    {userLinks.map(link => (
-                        <Link key={link.href} href={link.href} className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
-                            {link.label}
-                        </Link>
-                    ))}
-                  </>
-                )}
-
-                <Link href="/about" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
-                    About
-                </Link>
-                <Link href="/contact" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
-                    Contact Us
-                </Link>
-
-                {user && userData?.isAdmin && (
-                    <Link href="/admin" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5"/>
-                    Admin
+              <div className="flex flex-col h-full">
+                <div className="flex-1">
+                  <div className="flex flex-col gap-6 pt-12">
+                    <Link href="/" className="mb-4 flex items-center gap-2">
+                        <KravingsLogo />
+                        <span className="font-headline text-xl font-semibold text-primary">Kravings</span>
                     </Link>
-                )}
+                    
+                    <SheetClose asChild>
+                      <Link href="/" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                          Home
+                      </Link>
+                    </SheetClose>
+
+                    {user && (
+                      <>
+                        {userLinks.map(link => (
+                            <SheetClose asChild key={link.href}>
+                              <Link href={link.href} className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                                  {link.label}
+                              </Link>
+                            </SheetClose>
+                        ))}
+                      </>
+                    )}
+
+                    {publicLinks.map(link => (
+                        <SheetClose asChild key={link.href}>
+                          <Link href={link.href} className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                              {link.label}
+                          </Link>
+                        </SheetClose>
+                    ))}
+
+                    {user && userData?.isAdmin && (
+                        <SheetClose asChild>
+                          <Link href="/admin" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground flex items-center gap-2">
+                          <ShieldCheck className="h-5 w-5"/>
+                          Admin
+                          </Link>
+                        </SheetClose>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-auto mb-4">
+                  {user ? (
+                      <Button variant="outline" className="w-full" onClick={handleSignOut}>
+                          <LogOut className="mr-2"/>
+                          Sign Out
+                      </Button>
+                  ) : (
+                      <SheetClose asChild>
+                        <Button className="w-full" onClick={() => router.push('/signin')}>
+                          Sign In
+                        </Button>
+                      </SheetClose>
+                  )}
+                </div>
               </div>
             </SheetContent>
           </Sheet>

@@ -33,13 +33,11 @@ const profileFormSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-
 export default function ProfilePage() {
   const { toast } = useToast();
   const { user, userData, loading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -73,101 +71,98 @@ export default function ProfilePage() {
     }
   }, [userData, user, form]);
 
+  async function uploadImageAndGetURL(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!user) return reject(new Error("User not authenticated"));
+
+      const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.error("Upload failed:", error);
+          reject(error);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadURL);
+        }
+      );
+    });
+  }
+
   async function onSubmit(data: ProfileFormValues) {
     if (!user) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "You must be logged in to update your profile.",
-        });
-        return;
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to update your profile.",
+      });
+      return;
     }
     setIsSubmitting(true);
     setUploadProgress(null);
     
     try {
+      const updates: any = {};
+      let hasChanges = false;
+      
+      // --- 1. Collect textual changes ---
+      if (data.email && data.email !== user.email) {
+        await updateEmail(user, data.email);
+        updates.email = data.email;
+        hasChanges = true;
+      }
+      if (data.phone !== undefined && data.phone !== (user.phoneNumber || userData.phone)) {
+        updates.phone = data.phone;
+        hasChanges = true;
+      }
+      if (data.address !== undefined && data.address !== userData.address) {
+        updates.address = data.address;
+        hasChanges = true;
+      }
+      if (userData.isVendor && data.businessDescription !== undefined && data.businessDescription !== userData.businessDescription) {
+        updates.businessDescription = data.businessDescription;
+        hasChanges = true;
+      }
+
+      // --- 2. Handle Image Upload ---
+      const hasImageToUpload = userData.isVendor && data.displayPicture && data.displayPicture.length > 0;
+      if (hasImageToUpload) {
+        const file = data.displayPicture[0];
+        const imageUrl = await uploadImageAndGetURL(file);
+        updates.imageUrl = imageUrl;
+        hasChanges = true;
+      }
+      
+      // --- 3. Perform Firestore Update if there are changes ---
+      if (hasChanges) {
         const userDocRef = doc(db, 'users', user.uid);
-        const updates: any = {};
-        
-        // --- 1. Check for textual changes ---
-        if (data.email && data.email !== user.email) {
-            await updateEmail(user, data.email);
-            updates.email = data.email;
-        }
-        if (data.phone !== undefined && data.phone !== (user.phoneNumber || userData.phone)) {
-            updates.phone = data.phone;
-        }
-        if (data.address !== undefined && data.address !== userData.address) {
-            updates.address = data.address;
-        }
-        if (userData.isVendor && data.businessDescription !== undefined && data.businessDescription !== userData.businessDescription) {
-            updates.businessDescription = data.businessDescription;
-        }
-
-        const hasTextualChanges = Object.keys(updates).length > 0;
-        const hasImageToUpload = userData.isVendor && data.displayPicture && data.displayPicture.length > 0;
-
-        // --- 2. Handle Image Upload ---
-        if (hasImageToUpload) {
-            const file = data.displayPicture[0];
-            const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
-            const uploadTask = uploadBytesResumable(storageRef, file);
-
-            uploadTask.on('state_changed',
-                (snapshot) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    setUploadProgress(progress);
-                },
-                (error) => { // Handle upload error
-                    console.error("Upload failed:", error);
-                    toast({
-                        variant: "destructive",
-                        title: "Image upload failed.",
-                        description: error.message,
-                    });
-                    setIsSubmitting(false);
-                    setUploadProgress(null);
-                },
-                async () => { // Handle upload success
-                    const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-                    updates.imageUrl = imageUrl;
-                    
-                    // Now, update Firestore with all changes (textual + image URL)
-                    await updateDoc(userDocRef, updates);
-                    
-                    toast({
-                        title: "Profile updated!",
-                        description: "Your information has been successfully saved.",
-                    });
-                    setIsSubmitting(false);
-                    setUploadProgress(null);
-                }
-            );
-        } else if (hasTextualChanges) {
-            // --- 3. Handle Text-Only Changes ---
-            await updateDoc(userDocRef, updates);
-            toast({
-              title: "Profile updated!",
-              description: "Your information has been successfully saved.",
-            });
-            setIsSubmitting(false);
-        } else {
-            // --- 4. No Changes ---
-            toast({
-                title: "No changes",
-                description: "You haven't made any changes to your profile.",
-            });
-            setIsSubmitting(false);
-        }
-
-    } catch(error: any) {
-         toast({
-            variant: "destructive",
-            title: "Uh oh! Something went wrong.",
-            description: error.message || "Could not update your profile.",
+        await updateDoc(userDocRef, updates);
+        toast({
+            title: "Profile updated!",
+            description: "Your information has been successfully saved.",
         });
-        setIsSubmitting(false);
-        setUploadProgress(null);
+      } else {
+        toast({
+            title: "No changes",
+            description: "You haven't made any changes to your profile.",
+        });
+      }
+
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: error.message || "Could not update your profile.",
+      });
+    } finally {
+      setIsSubmitting(false);
+      setUploadProgress(null);
     }
   }
 

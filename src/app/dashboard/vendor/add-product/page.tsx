@@ -14,12 +14,16 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
+import { addDoc, collection } from 'firebase/firestore';
+import { db, storage } from '@/lib/firebase';
+import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
+import { Progress } from '@/components/ui/progress';
 
 const addProductFormSchema = z.object({
   name: z.string().min(3, { message: 'Product name must be at least 3 characters.' }),
   details: z.string().min(10, { message: 'Details must be at least 10 characters.' }),
   price: z.coerce.number().positive({ message: 'Price must be a positive number.' }),
-  image: z.any().refine((files) => files?.length == 1, 'Product image is required.'),
+  image: z.any().refine((files) => files?.length === 1, 'Product image is required.'),
   availability: z.boolean().default(true),
 });
 
@@ -30,6 +34,7 @@ export default function AddProductPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const form = useForm<AddProductFormValues>({
     resolver: zodResolver(addProductFormSchema),
@@ -44,6 +49,8 @@ export default function AddProductPage() {
 
   async function onSubmit(data: AddProductFormValues) {
     setIsLoading(true);
+    setUploadProgress(null);
+
     if (!user) {
       toast({
         variant: 'destructive',
@@ -55,25 +62,52 @@ export default function AddProductPage() {
     }
 
     try {
-      // Placeholder for Firestore and Storage logic
-      console.log('Form data:', data);
-      console.log('Image file:', data.image[0]);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const imageFile = data.image[0];
+      const storageRef = ref(storage, `products/${user.uid}/${Date.now()}_${imageFile.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, imageFile);
 
-      toast({
-        title: 'Product Added!',
-        description: `${data.name} has been successfully listed.`,
-      });
-      router.push('/dashboard/vendor');
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.error("Upload failed:", error);
+          toast({
+            variant: "destructive",
+            title: "Image upload failed.",
+            description: error.message,
+          });
+          setIsLoading(false);
+          setUploadProgress(null);
+        },
+        async () => {
+          const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          
+          await addDoc(collection(db, 'products'), {
+            vendorId: user.uid,
+            name: data.name,
+            details: data.details,
+            price: data.price,
+            imageUrl,
+            availability: data.availability,
+            approved: false, // Default to not approved
+            createdAt: new Date(),
+          });
+
+          toast({
+            title: 'Product Submitted!',
+            description: `${data.name} has been submitted for approval.`,
+          });
+          router.push('/dashboard/vendor');
+        }
+      );
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
         description: error.message || 'Could not add the product.',
       });
-    } finally {
       setIsLoading(false);
     }
   }
@@ -86,7 +120,7 @@ export default function AddProductPage() {
         <CardHeader>
           <CardTitle className="font-headline text-2xl">Add a New Product</CardTitle>
           <CardDescription>
-            Fill out the details below to list a new item for sale.
+            Fill out the details below to list a new item for sale. It will be reviewed by an admin before it's visible to customers.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -139,13 +173,16 @@ export default function AddProductPage() {
                     <FormItem>
                       <FormLabel>Product Image</FormLabel>
                       <FormControl>
-                        <Input type="file" accept="image/*" {...imageRef} />
+                        <Input type="file" accept="image/*" {...imageRef} disabled={isLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   );
                 }}
               />
+              {uploadProgress !== null && (
+                <Progress value={uploadProgress} className="w-full" />
+              )}
               <FormField
                 control={form.control}
                 name="availability"
@@ -161,6 +198,7 @@ export default function AddProductPage() {
                       <Switch
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        disabled={isLoading}
                       />
                     </FormControl>
                   </FormItem>
@@ -168,7 +206,7 @@ export default function AddProductPage() {
               />
 
               <Button type="submit" className="font-semibold" disabled={isLoading}>
-                {isLoading ? 'Adding Product...' : 'Add Product'}
+                {isLoading ? 'Submitting for Approval...' : 'Submit for Approval'}
               </Button>
             </form>
           </Form>

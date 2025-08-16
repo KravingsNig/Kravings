@@ -1,9 +1,11 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Header } from '@/components/layout/header';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/hooks/use-auth';
+import { CartProvider } from '@/hooks/use-cart';
 
 export const metadata: Metadata = {
   title: 'Kravings',
@@ -30,11 +32,13 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <Header />
-            <main className="flex-1">
-              {children}
-            </main>
-            <Toaster />
+            <CartProvider>
+              <Header />
+              <main className="flex-1">
+                {children}
+              </main>
+              <Toaster />
+            </CartProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

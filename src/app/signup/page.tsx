@@ -12,6 +12,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { customAlphabet } from 'nanoid';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +69,11 @@ export default function SignUpPage() {
   });
 
   const isVendor = form.watch('isVendor');
+  
+  const generateReferralCode = () => {
+    const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 8);
+    return nanoid();
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -76,7 +82,7 @@ export default function SignUpPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      await setDoc(doc(db, 'users', user.uid), {
+      const userData: any = {
         uid: user.uid,
         firstName,
         lastName,
@@ -84,9 +90,17 @@ export default function SignUpPage() {
         phone: phone || '',
         address: address || '',
         isVendor,
-        ...(isVendor ? { businessName } : { username }),
         createdAt: new Date(),
-      });
+      };
+
+      if (isVendor) {
+        userData.businessName = businessName;
+      } else {
+        userData.username = username;
+        userData.referralCode = generateReferralCode();
+      }
+
+      await setDoc(doc(db, 'users', user.uid), userData);
 
       toast({
         title: "Account Created!",

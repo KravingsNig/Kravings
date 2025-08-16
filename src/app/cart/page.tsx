@@ -2,20 +2,18 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Trash2, ShoppingBag } from "lucide-react";
 import Link from "next/link";
-
-// Mock data for now
-const cartItems = [
-  { id: 1, name: "Jollof Rice", price: 2500, quantity: 1, image: "https://placehold.co/100x100" },
-  { id: 2, name: "Fried Plantain", price: 1000, quantity: 2, image: "https://placehold.co/100x100" },
-];
-
-const cartTotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+import { useCart } from "@/hooks/use-cart";
+import Image from "next/image";
 
 export default function CartPage() {
+  const { cartItems, removeFromCart, cartTotal } = useCart();
+
+  const deliveryFee = 1500;
+
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
@@ -44,7 +42,7 @@ export default function CartPage() {
                   {cartItems.map((item) => (
                     <div key={item.id} className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <img src={item.image} alt={item.name} className="w-16 h-16 rounded-md object-cover" />
+                        <Image src={item.imageUrl} alt={item.name} width={64} height={64} className="w-16 h-16 rounded-md object-cover" />
                         <div>
                           <p className="font-semibold">{item.name}</p>
                           <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
@@ -52,7 +50,7 @@ export default function CartPage() {
                       </div>
                       <div className="flex items-center gap-4">
                          <p className="font-semibold">₦{item.price.toLocaleString()}</p>
-                         <Button variant="ghost" size="icon">
+                         <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                          </Button>
                       </div>
@@ -74,12 +72,12 @@ export default function CartPage() {
                  </div>
                  <div className="flex justify-between">
                     <span>Delivery Fee</span>
-                    <span>₦1500</span>
+                    <span>₦{deliveryFee.toLocaleString()}</span>
                  </div>
                  <Separator />
                  <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>₦{(cartTotal + 1500).toLocaleString()}</span>
+                    <span>₦{(cartTotal + deliveryFee).toLocaleString()}</span>
                  </div>
                  <Button className="w-full mt-4">Proceed to Checkout</Button>
               </CardContent>
