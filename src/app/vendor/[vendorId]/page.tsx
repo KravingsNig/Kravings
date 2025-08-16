@@ -26,9 +26,9 @@ const products = [
 export default function VendorPage({ params }: { params: { vendorId: string } }) {
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [loading, setLoading] = useState(true);
-  const { vendorId } = params;
 
   useEffect(() => {
+    const vendorId = params.vendorId;
     if (vendorId) {
       const fetchVendor = async () => {
         setLoading(true);
@@ -49,7 +49,7 @@ export default function VendorPage({ params }: { params: { vendorId: string } })
       };
       fetchVendor();
     }
-  }, [vendorId]);
+  }, [params.vendorId]);
 
   if (loading) {
     return (
