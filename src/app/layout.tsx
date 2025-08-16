@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/header';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/hooks/use-auth';
 import { CartProvider } from '@/hooks/use-cart';
+import { PullToRefresh } from '@/components/pull-to-refresh';
 
 export const metadata: Metadata = {
   title: 'Kravings',
@@ -33,11 +34,13 @@ export default function RootLayout({
         >
           <AuthProvider>
             <CartProvider>
-              <Header />
-              <main className="flex-1">
-                {children}
-              </main>
-              <Toaster />
+              <PullToRefresh>
+                <Header />
+                <main className="flex-1">
+                  {children}
+                </main>
+                <Toaster />
+              </PullToRefresh>
             </CartProvider>
           </AuthProvider>
         </ThemeProvider>
