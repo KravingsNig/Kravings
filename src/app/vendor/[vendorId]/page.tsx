@@ -26,13 +26,14 @@ const products = [
 export default function VendorPage({ params }: { params: { vendorId: string } }) {
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [loading, setLoading] = useState(true);
+  const { vendorId } = params;
 
   useEffect(() => {
-    if (params.vendorId) {
+    if (vendorId) {
       const fetchVendor = async () => {
         setLoading(true);
         try {
-          const docRef = doc(db, 'users', params.vendorId);
+          const docRef = doc(db, 'users', vendorId);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             setVendor(docSnap.data() as Vendor);
@@ -48,7 +49,7 @@ export default function VendorPage({ params }: { params: { vendorId: string } })
       };
       fetchVendor();
     }
-  }, [params.vendorId]);
+  }, [vendorId]);
 
   if (loading) {
     return (
