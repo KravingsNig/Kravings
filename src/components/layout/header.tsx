@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Menu, LogOut, LayoutDashboard } from 'lucide-react';
+import { ShoppingCart, Menu, LogOut, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { KravingsLogo } from '@/components/kravings-logo';
@@ -13,7 +13,7 @@ import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 export function Header() {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const router = useRouter();
   const cartItemCount = 0; // Mocked value, will be replaced with real data
 
@@ -50,6 +50,12 @@ export function Header() {
               <Link href="/dashboard" className="text-foreground/60 transition-colors hover:text-foreground/80">
                 Dashboard
               </Link>
+               {userData?.isAdmin && (
+                 <Link href="/admin" className="flex items-center gap-1 text-foreground/60 transition-colors hover:text-foreground/80">
+                  <ShieldCheck className="h-4 w-4" />
+                  Admin
+                </Link>
+              )}
             </>
           )}
         </nav>
@@ -103,6 +109,12 @@ export function Header() {
                      <Link href="/dashboard" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
                       Dashboard
                     </Link>
+                    {userData?.isAdmin && (
+                        <Link href="/admin" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground flex items-center gap-2">
+                        <ShieldCheck className="h-5 w-5"/>
+                        Admin
+                        </Link>
+                    )}
                   </>
                 )}
               </div>
