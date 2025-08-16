@@ -30,6 +30,7 @@ export default function VendorPage({ params }: { params: { vendorId: string } })
   useEffect(() => {
     if (params.vendorId) {
       const fetchVendor = async () => {
+        setLoading(true);
         try {
           const docRef = doc(db, 'users', params.vendorId);
           const docSnap = await getDoc(docRef);
@@ -37,6 +38,7 @@ export default function VendorPage({ params }: { params: { vendorId: string } })
             setVendor(docSnap.data() as Vendor);
           } else {
             console.log('No such vendor!');
+            setVendor(null);
           }
         } catch (error) {
           console.error('Error fetching vendor:', error);
@@ -82,8 +84,9 @@ export default function VendorPage({ params }: { params: { vendorId: string } })
                 <Image
                     src={vendor.imageUrl}
                     alt={vendor.businessName}
-                    layout="fill"
-                    objectFit="cover"
+                    fill
+                    className="object-cover"
+                    priority
                 />
             )}
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
