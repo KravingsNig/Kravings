@@ -44,7 +44,7 @@ export default function SignInPage() {
         title: "Signed In!",
         description: "Welcome back.",
       });
-      router.push('/profile');
+      router.push('/');
     } catch (error: any) {
       console.error("Sign in error:", error);
       toast({
