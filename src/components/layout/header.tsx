@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Menu, LogOut, LayoutDashboard, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, Menu, LogOut, LayoutDashboard, ShieldCheck, User, Wallet, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { KravingsLogo } from '@/components/kravings-logo';
@@ -24,9 +24,15 @@ export function Header() {
 
   const navLinks = [
     { href: '/', label: 'Home' },
-    // { href: '/about', label: 'About' },
+    { href: '/about', label: 'About' },
     { href: '/contact', label: 'Contact Us' },
   ];
+  
+  const userLinks = [
+      { href: '/dashboard', label: 'Dashboard' },
+      { href: '/wallet', label: 'Wallet' },
+      { href: '/profile', label: 'Profile' },
+  ]
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -37,26 +43,32 @@ export function Header() {
         </Link>
         
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-          {navLinks.map(link => (
-            <Link key={link.href} href={link.href} className="text-foreground/60 transition-colors hover:text-foreground/80">
-              {link.label}
-            </Link>
-          ))}
+          <Link href="/" className="text-foreground/60 transition-colors hover:text-foreground/80">
+            Home
+          </Link>
+
           {user && (
             <>
-              <Link href="/profile" className="text-foreground/60 transition-colors hover:text-foreground/80">
-                Profile
-              </Link>
-              <Link href="/dashboard" className="text-foreground/60 transition-colors hover:text-foreground/80">
-                Dashboard
-              </Link>
-               {userData?.isAdmin && (
-                 <Link href="/admin" className="flex items-center gap-1 text-foreground/60 transition-colors hover:text-foreground/80">
-                  <ShieldCheck className="h-4 w-4" />
-                  Admin
+              {userLinks.map(link => (
+                 <Link key={link.href} href={link.href} className="text-foreground/60 transition-colors hover:text-foreground/80">
+                  {link.label}
                 </Link>
-              )}
+              ))}
             </>
+          )}
+
+          <Link href="/about" className="text-foreground/60 transition-colors hover:text-foreground/80">
+            About
+          </Link>
+          <Link href="/contact" className="text-foreground/60 transition-colors hover:text-foreground/80">
+            Contact Us
+          </Link>
+          
+          {user && userData?.isAdmin && (
+            <Link href="/admin" className="flex items-center gap-1 text-foreground/60 transition-colors hover:text-foreground/80">
+              <ShieldCheck className="h-4 w-4" />
+              Admin
+            </Link>
           )}
         </nav>
 
@@ -96,26 +108,33 @@ export function Header() {
                     <KravingsLogo />
                     <span className="font-headline text-xl font-semibold text-primary">Kravings</span>
                 </Link>
-                {navLinks.map(link => (
-                  <Link key={link.href} href={link.href} className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
-                    {link.label}
-                  </Link>
-                ))}
+                
+                <Link href="/" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                    Home
+                </Link>
+
                  {user && (
                   <>
-                    <Link href="/profile" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
-                      Profile
-                    </Link>
-                     <Link href="/dashboard" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
-                      Dashboard
-                    </Link>
-                    {userData?.isAdmin && (
-                        <Link href="/admin" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground flex items-center gap-2">
-                        <ShieldCheck className="h-5 w-5"/>
-                        Admin
+                    {userLinks.map(link => (
+                        <Link key={link.href} href={link.href} className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                            {link.label}
                         </Link>
-                    )}
+                    ))}
                   </>
+                )}
+
+                <Link href="/about" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                    About
+                </Link>
+                <Link href="/contact" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
+                    Contact Us
+                </Link>
+
+                {user && userData?.isAdmin && (
+                    <Link href="/admin" className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5"/>
+                    Admin
+                    </Link>
                 )}
               </div>
             </SheetContent>
