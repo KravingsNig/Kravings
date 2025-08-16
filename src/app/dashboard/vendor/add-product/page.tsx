@@ -17,7 +17,6 @@ import { Switch } from '@/components/ui/switch';
 import { addDoc, collection } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
-import { Progress } from '@/components/ui/progress';
 
 const addProductFormSchema = z.object({
   name: z.string().min(3, { message: 'Product name must be at least 3 characters.' }),
@@ -34,7 +33,6 @@ export default function AddProductPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const form = useForm<AddProductFormValues>({
     resolver: zodResolver(addProductFormSchema),
@@ -42,6 +40,7 @@ export default function AddProductPage() {
       name: '',
       details: '',
       price: 0,
+      image: undefined,
       availability: true,
     },
     mode: 'onChange',
@@ -49,7 +48,6 @@ export default function AddProductPage() {
 
   async function onSubmit(data: AddProductFormValues) {
     setIsLoading(true);
-    setUploadProgress(null);
 
     if (!user) {
       toast({
@@ -67,10 +65,7 @@ export default function AddProductPage() {
       const uploadTask = uploadBytesResumable(storageRef, imageFile);
 
       uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-        },
+        () => {}, // We no longer track progress, so this is empty.
         (error) => {
           console.error("Upload failed:", error);
           toast({
@@ -79,7 +74,6 @@ export default function AddProductPage() {
             description: error.message,
           });
           setIsLoading(false);
-          setUploadProgress(null);
         },
         async () => {
           const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
@@ -111,8 +105,6 @@ export default function AddProductPage() {
       setIsLoading(false);
     }
   }
-
-  const imageRef = form.register('image');
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -168,21 +160,21 @@ export default function AddProductPage() {
                <FormField
                 control={form.control}
                 name="image"
-                render={({ field }) => {
-                  return (
-                    <FormItem>
-                      <FormLabel>Product Image</FormLabel>
-                      <FormControl>
-                        <Input type="file" accept="image/*" {...imageRef} disabled={isLoading} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Product Image</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={isLoading}
+                        onChange={(e) => field.onChange(e.target.files)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {uploadProgress !== null && (
-                <Progress value={uploadProgress} className="w-full" />
-              )}
               <FormField
                 control={form.control}
                 name="availability"
