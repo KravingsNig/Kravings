@@ -14,8 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { LoaderCircle } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db, storage } from '@/lib/firebase';
-import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
+import { db } from '@/lib/firebase';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
@@ -39,7 +38,7 @@ export default function ProfilePage() {
   const [isSubmittingDetails, setIsSubmittingDetails] = useState(false);
   const [isSubmittingPicture, setIsSubmittingPicture] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
 
   const detailsForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -59,20 +58,32 @@ export default function ProfilePage() {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({
+          variant: 'destructive',
+          title: 'File too large',
+          description: 'Please upload an image smaller than 2MB.',
+        });
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        toast({
+          variant: 'destructive',
+          title: 'Invalid file type',
+          description: 'Please upload an image file (jpg, png, gif).',
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setImagePreview(dataUrl);
+        setImageDataUrl(dataUrl);
+      };
+      reader.readAsDataURL(file);
     }
   };
-
-  useEffect(() => {
-    // Cleanup the object URL on component unmount
-    return () => {
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview);
-      }
-    };
-  }, [imagePreview]);
 
   useEffect(() => {
     if (userData) {
@@ -116,6 +127,7 @@ export default function ProfilePage() {
       if (Object.keys(updates).length > 0) {
         const userDocRef = doc(db, 'users', user.uid);
         await updateDoc(userDocRef, updates);
+        setUserData((prev: any) => ({ ...prev, ...updates }));
         toast({ title: "Profile updated!", description: "Your information has been successfully saved." });
       } else {
         toast({ title: "No changes", description: "You haven't made any changes to your profile." });
@@ -133,34 +145,26 @@ export default function ProfilePage() {
       toast({ variant: "destructive", title: "Error", description: "You must be logged in." });
       return;
     }
-    if (!selectedFile) {
+    if (!imageDataUrl) {
         toast({ variant: "destructive", title: "No file selected", description: "Please select an image to upload." });
         return;
     }
 
     setIsSubmittingPicture(true);
 
-    const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
-    const uploadTask = uploadBytesResumable(storageRef, selectedFile);
-
-    uploadTask.on('state_changed',
-      (snapshot) => {},
-      (error) => {
+    try {
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, { imageUrl: imageDataUrl });
+        setUserData((prev: any) => ({ ...prev, imageUrl: imageDataUrl }));
+        toast({ title: "Picture updated!", description: "Your display picture has been changed." });
+        setImageDataUrl(null);
+        setImagePreview(null);
+    } catch (error: any) {
         console.error("Upload failed:", error);
         toast({ variant: 'destructive', title: "Upload failed", description: error.message });
+    } finally {
         setIsSubmittingPicture(false);
-      },
-      async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-        const userDocRef = doc(db, 'users', user.uid);
-        await updateDoc(userDocRef, { imageUrl: downloadURL });
-        setUserData((prev: any) => ({ ...prev, imageUrl: downloadURL }));
-        toast({ title: "Picture updated!", description: "Your display picture has been changed." });
-        setIsSubmittingPicture(false);
-        setSelectedFile(null);
-        setImagePreview(null);
-      }
-    );
+    }
   }
 
   if (loading) {
@@ -199,7 +203,7 @@ export default function ProfilePage() {
                   <Label htmlFor="picture">Upload a new picture</Label>
                   <Input id="picture" type="file" accept="image/*" onChange={handleFileChange} disabled={isSubmittingPicture} />
                 </div>
-                <Button onClick={handlePictureUpload} disabled={isSubmittingPicture || !selectedFile}>
+                <Button onClick={handlePictureUpload} disabled={isSubmittingPicture || !imageDataUrl}>
                    {isSubmittingPicture ? 'Uploading...' : 'Upload Picture'}
                 </Button>
               </div>
