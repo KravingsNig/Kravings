@@ -33,7 +33,7 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const pictureFormSchema = z.object({
-  displayPicture: z.any().refine((files) => files?.length === 1, 'Please select an image.'),
+  displayPicture: z.instanceof(FileList).refine((files) => files?.length === 1, 'Please select an image.'),
 });
 
 type PictureFormValues = z.infer<typeof pictureFormSchema>;
@@ -43,6 +43,7 @@ export default function ProfilePage() {
   const { user, userData, loading } = useAuth();
   const [isSubmittingDetails, setIsSubmittingDetails] = useState(false);
   const [isSubmittingPicture, setIsSubmittingPicture] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const detailsForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -63,6 +64,23 @@ export default function ProfilePage() {
     resolver: zodResolver(pictureFormSchema),
   });
   
+  const displayPictureFile = pictureForm.watch('displayPicture');
+
+  useEffect(() => {
+    if (displayPictureFile && displayPictureFile.length > 0) {
+      const file = displayPictureFile[0];
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+
+      return () => {
+        URL.revokeObjectURL(previewUrl);
+      };
+    } else {
+        setImagePreview(null);
+    }
+  }, [displayPictureFile]);
+
+
   useEffect(() => {
     if (userData) {
       detailsForm.reset({
@@ -129,9 +147,7 @@ export default function ProfilePage() {
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     uploadTask.on('state_changed',
-      (snapshot) => {
-        // We can monitor progress here if we re-add the progress bar
-      },
+      (snapshot) => {},
       (error) => {
         console.error("Upload failed:", error);
         toast({ variant: 'destructive', title: "Upload failed", description: error.message });
@@ -172,8 +188,8 @@ export default function ProfilePage() {
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-8 items-center">
               <Image 
-                src={userData.imageUrl || 'https://placehold.co/150x150'} 
-                alt="Display Picture" 
+                src={imagePreview || userData.imageUrl || 'https://placehold.co/150x150'} 
+                alt="Display Picture Preview" 
                 width={150} 
                 height={150} 
                 className="rounded-lg object-cover aspect-square"
@@ -193,7 +209,7 @@ export default function ProfilePage() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" disabled={isSubmittingPicture}>
+                  <Button type="submit" disabled={isSubmittingPicture || !imagePreview}>
                      {isSubmittingPicture ? 'Uploading...' : 'Upload Picture'}
                   </Button>
                 </form>
@@ -352,3 +368,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
