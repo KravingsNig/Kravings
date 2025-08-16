@@ -12,18 +12,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { useState } from 'react';
+import { useState, DragEvent } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { addDoc, collection } from 'firebase/firestore';
-import { db, storage } from '@/lib/firebase';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { LoaderCircle } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { LoaderCircle, UploadCloud, X } from 'lucide-react';
+import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 const addProductFormSchema = z.object({
   name: z.string().min(3, { message: 'Product name must be at least 3 characters.' }),
   details: z.string().min(10, { message: 'Details must be at least 10 characters.' }),
   price: z.coerce.number().positive({ message: 'Price must be a positive number.' }),
-  image: z.any().refine((files) => files?.length === 1, 'Product image is required.'),
+  image: z.string().min(1, 'Product image is required.'),
   availability: z.boolean().default(true),
 });
 
@@ -34,6 +35,8 @@ export default function AddProductPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const form = useForm<AddProductFormValues>({
     resolver: zodResolver(addProductFormSchema),
@@ -41,13 +44,65 @@ export default function AddProductPage() {
       name: '',
       details: '',
       price: 0,
-      image: undefined,
+      image: '',
       availability: true,
     },
     mode: 'onChange',
   });
 
-  const fileRef = form.register("image");
+  const handleImageChange = (file: File | null) => {
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+          toast({
+              variant: 'destructive',
+              title: 'File too large',
+              description: 'Please upload an image smaller than 2MB.',
+          });
+          return;
+      }
+      if (!file.type.startsWith('image/')) {
+           toast({
+              variant: 'destructive',
+              title: 'Invalid file type',
+              description: 'Please upload an image file (jpg, png, gif).',
+          });
+          return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setImagePreview(dataUrl);
+        form.setValue('image', dataUrl, { shouldValidate: true });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+  
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleImageChange(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImagePreview(null);
+    form.setValue('image', '', { shouldValidate: true });
+  };
+
 
   async function onSubmit(data: AddProductFormValues) {
     if (!user) {
@@ -62,28 +117,14 @@ export default function AddProductPage() {
     setIsLoading(true);
     
     try {
-      const imageFile = data.image[0];
-      if (!imageFile) {
-        throw new Error("No image file provided.");
-      }
-
-      const storageRef = ref(storage, `products/${user.uid}/${Date.now()}_${imageFile.name}`);
-      
-      // 1. Upload the image
-      await uploadBytes(storageRef, imageFile);
-      
-      // 2. Get the download URL
-      const imageUrl = await getDownloadURL(storageRef);
-
-      // 3. Add product to Firestore
       await addDoc(collection(db, 'products'), {
         vendorId: user.uid,
         name: data.name,
         details: data.details,
         price: data.price,
-        imageUrl,
+        imageUrl: data.image,
         availability: data.availability,
-        approved: false, // Default to not approved
+        approved: false,
         createdAt: new Date(),
       });
 
@@ -162,13 +203,52 @@ export default function AddProductPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Product Image</FormLabel>
-                    <FormControl>
-                       <Input
-                        type="file"
-                        accept="image/*"
-                        disabled={isLoading}
-                        {...fileRef}
-                      />
+                     <FormControl>
+                        <div>
+                        {imagePreview ? (
+                            <div className="relative group">
+                                <Image
+                                    src={imagePreview}
+                                    alt="Product preview"
+                                    width={600}
+                                    height={400}
+                                    className="rounded-md object-cover aspect-video"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={removeImage}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <div
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                                className={cn(
+                                    "relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-md text-center cursor-pointer hover:border-primary transition-colors",
+                                    isDragging ? "border-primary bg-primary/10" : "border-muted"
+                                )}
+                            >
+                                <UploadCloud className="h-12 w-12 text-muted-foreground" />
+                                <p className="mt-4 text-muted-foreground">
+                                    <span className="font-semibold text-primary">Click to upload</span> or drag and drop
+                                </p>
+                                <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 2MB</p>
+                                <Input
+                                    type="file"
+                                    accept="image/*"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => handleImageChange(e.target.files?.[0] || null)}
+                                    disabled={isLoading}
+                                />
+                            </div>
+                        )}
+                        </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

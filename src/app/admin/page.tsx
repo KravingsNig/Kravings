@@ -93,7 +93,7 @@ export default function AdminPage() {
               {products.map((product) => (
                 <div key={product.id} className="flex items-center justify-between p-4 border rounded-md">
                   <div className="flex items-center gap-4">
-                    <Image src={product.imageUrl} alt={product.name} width={50} height={50} className="rounded-md" />
+                    <Image src={product.imageUrl} alt={product.name} width={50} height={50} className="rounded-md object-cover" />
                     <div>
                       <p className="font-semibold">{product.name}</p>
                       <p className="text-sm text-muted-foreground">₦{product.price.toLocaleString()}</p>
