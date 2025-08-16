@@ -110,6 +110,7 @@ export default function ProfilePage() {
     try {
       const updates: any = {};
       
+      // We check each field individually to see if it has changed.
       if (data.email && data.email !== user.email) {
         await updateEmail(user, data.email);
         updates.email = data.email;
@@ -124,16 +125,21 @@ export default function ProfilePage() {
         updates.businessDescription = data.businessDescription;
       }
       
+      // Only write to Firestore and update state if there are actual changes.
       if (Object.keys(updates).length > 0) {
         const userDocRef = doc(db, 'users', user.uid);
         await updateDoc(userDocRef, updates);
+
+        // Update the local state to reflect the changes immediately
         setUserData((prev: any) => ({ ...prev, ...updates }));
+        
         toast({ title: "Profile updated!", description: "Your information has been successfully saved." });
       } else {
-        toast({ title: "No changes", description: "You haven't made any changes to your profile." });
+        toast({ title: "No changes", description: "You haven't made any changes to your profile details." });
       }
 
     } catch (error: any) {
+      console.error("Profile update error: ", error);
       toast({ variant: "destructive", title: "Uh oh!", description: error.message || "Could not update profile." });
     } finally {
       setIsSubmittingDetails(false);
