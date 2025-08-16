@@ -18,6 +18,7 @@ import { db, storage } from '@/lib/firebase';
 import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
+import { Label } from '@/components/ui/label';
 
 const profileFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -34,7 +35,7 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user, userData, loading } = useAuth();
+  const { user, userData, loading, setUserData } = useAuth();
   const [isSubmittingDetails, setIsSubmittingDetails] = useState(false);
   const [isSubmittingPicture, setIsSubmittingPicture] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -153,6 +154,7 @@ export default function ProfilePage() {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
         const userDocRef = doc(db, 'users', user.uid);
         await updateDoc(userDocRef, { imageUrl: downloadURL });
+        setUserData((prev: any) => ({ ...prev, imageUrl: downloadURL }));
         toast({ title: "Picture updated!", description: "Your display picture has been changed." });
         setIsSubmittingPicture(false);
         setSelectedFile(null);
@@ -190,15 +192,13 @@ export default function ProfilePage() {
                 width={150} 
                 height={150} 
                 className="rounded-lg object-cover aspect-square"
+                data-ai-hint="profile picture"
               />
               <div className="space-y-4 flex-1">
-                <FormItem>
-                  <FormLabel>Upload a new picture</FormLabel>
-                  <FormControl>
-                    <Input type="file" accept="image/*" onChange={handleFileChange} disabled={isSubmittingPicture} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                 <div className="grid w-full max-w-sm items-center gap-1.5">
+                  <Label htmlFor="picture">Upload a new picture</Label>
+                  <Input id="picture" type="file" accept="image/*" onChange={handleFileChange} disabled={isSubmittingPicture} />
+                </div>
                 <Button onClick={handlePictureUpload} disabled={isSubmittingPicture || !selectedFile}>
                    {isSubmittingPicture ? 'Uploading...' : 'Upload Picture'}
                 </Button>
@@ -357,5 +357,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
