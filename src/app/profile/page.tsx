@@ -18,6 +18,7 @@ import { db } from '@/lib/firebase';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
+import Loading from '@/app/loading';
 
 const profileFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -110,7 +111,6 @@ export default function ProfilePage() {
     try {
       const updates: any = {};
       
-      // We check each field individually to see if it has changed.
       if (data.email && data.email !== user.email) {
         await updateEmail(user, data.email);
         updates.email = data.email;
@@ -125,12 +125,10 @@ export default function ProfilePage() {
         updates.businessDescription = data.businessDescription;
       }
       
-      // Only write to Firestore and update state if there are actual changes.
       if (Object.keys(updates).length > 0) {
         const userDocRef = doc(db, 'users', user.uid);
         await updateDoc(userDocRef, updates);
 
-        // Update the local state to reflect the changes immediately
         setUserData((prev: any) => ({ ...prev, ...updates }));
         
         toast({ title: "Profile updated!", description: "Your information has been successfully saved." });
@@ -173,15 +171,8 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
-            <div className="flex flex-col items-center gap-4">
-                <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
-                <p className="font-headline text-lg text-primary/80">Loading Profile...</p>
-            </div>
-        </div>
-    );
+  if (loading || !userData) {
+    return <Loading />;
   }
 
   return (

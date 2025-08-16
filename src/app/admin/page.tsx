@@ -47,7 +47,7 @@ export default function AdminPage() {
     if (userData?.isAdmin) {
       fetchUnapprovedProducts();
     }
-  }, [userData]);
+  }, [userData, toast]);
 
   const handleApprove = async (productId: string) => {
     try {
@@ -62,11 +62,11 @@ export default function AdminPage() {
     }
   };
 
-  if (adminLoading) {
+  if (adminLoading || !userData) {
     return <Loading />;
   }
 
-  if (!user || !userData?.isAdmin) {
+  if (!user || !userData.isAdmin) {
     return null; 
   }
 

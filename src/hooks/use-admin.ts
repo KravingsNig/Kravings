@@ -10,10 +10,11 @@ export const useAdmin = () => {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      if (!user || !userData?.isAdmin) {
-        router.push('/');
-      }
+    if (loading) {
+        return;
+    }
+    if (!user || !userData?.isAdmin) {
+      router.replace('/');
     }
   }, [user, userData, loading, router]);
 
