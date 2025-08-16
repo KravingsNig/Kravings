@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import { VendorProductsModal } from './vendor-products-modal';
 
 interface Vendor {
   id: string;
@@ -23,6 +24,7 @@ interface Vendor {
 export default function HomeComponent() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
 
   useEffect(() => {
     const fetchVendors = async () => {
@@ -43,7 +45,6 @@ export default function HomeComponent() {
         setVendors(fetchedVendors);
       } catch (error) {
         console.error("Error fetching vendors: ", error);
-        // Optionally, set an error state to show in the UI
       } finally {
         setLoading(false);
       }
@@ -53,44 +54,48 @@ export default function HomeComponent() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      <section className="mb-12 text-center">
-        <h1 className="font-headline text-4xl font-bold tracking-tight text-primary md:text-5xl">
-          Find Your Kravings
-        </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-lg text-foreground/80">
-          Discover local vendors and satisfy your deepest food cravings, all in one place.
-        </p>
-        <div className="mt-8 mx-auto max-w-lg">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search for vendors, food, or drinks..."
-              className="w-full rounded-full bg-background pl-10 pr-4 py-6 text-base shadow-md focus-visible:ring-primary/40"
-            />
+    <>
+      <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <section className="mb-12 text-center">
+          <h1 className="font-headline text-4xl font-bold tracking-tight text-primary md:text-5xl">
+            Find Your Kravings
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-foreground/80">
+            Discover local vendors and satisfy your deepest food cravings, all in one place.
+          </p>
+          <div className="mt-8 mx-auto max-w-lg">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search for vendors, food, or drinks..."
+                className="w-full rounded-full bg-background pl-10 pr-4 py-6 text-base shadow-md focus-visible:ring-primary/40"
+              />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section>
-        <h2 className="mb-8 text-center font-headline text-3xl font-bold">Featured Vendors</h2>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {loading ? (
-             Array.from({ length: 6 }).map((_, index) => (
-                <Card key={index} className="h-full overflow-hidden">
-                    <Skeleton className="aspect-video w-full" />
-                    <CardContent className="p-6">
-                        <Skeleton className="h-6 w-3/4 mb-2" />
-                        <Skeleton className="h-4 w-full mb-4" />
-                        <Skeleton className="h-5 w-1/3" />
-                    </CardContent>
-                </Card>
-             ))
-          ) : vendors.length > 0 ? (
-            vendors.map((vendor) => (
-              <Link key={vendor.id} href={`/vendor/${vendor.id}`} className="group block">
-                <Card className="h-full overflow-hidden border-border/60 transition-all duration-300 ease-in-out group-hover:-translate-y-1 group-hover:shadow-xl">
+        <section>
+          <h2 className="mb-8 text-center font-headline text-3xl font-bold">Featured Vendors</h2>
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {loading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                  <Card key={index} className="h-full overflow-hidden">
+                      <Skeleton className="aspect-video w-full" />
+                      <CardContent className="p-6">
+                          <Skeleton className="h-6 w-3/4 mb-2" />
+                          <Skeleton className="h-4 w-full mb-4" />
+                          <Skeleton className="h-5 w-1/3" />
+                      </CardContent>
+                  </Card>
+              ))
+            ) : vendors.length > 0 ? (
+              vendors.map((vendor) => (
+                <Card 
+                  key={vendor.id} 
+                  className="h-full overflow-hidden border-border/60 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl cursor-pointer"
+                  onClick={() => setSelectedVendor(vendor)}
+                >
                   <CardHeader className="p-0">
                     <div className="aspect-video overflow-hidden">
                       <Image
@@ -106,20 +111,27 @@ export default function HomeComponent() {
                   <CardContent className="p-6">
                     <CardTitle className="mb-2 font-headline text-xl font-semibold">{vendor.name}</CardTitle>
                     <CardDescription>{vendor.description}</CardDescription>
-                    <Button variant="link" className="mt-4 p-0 font-semibold text-primary">
-                      View Products <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                     <p className="mt-4 font-semibold text-primary/80 text-sm">
+                      Click to view products
+                    </p>
                   </CardContent>
                 </Card>
-              </Link>
-            ))
-          ) : (
-             <div className="col-span-full text-center text-muted-foreground py-8">
-              <p>No vendors are available at the moment. Please check back later.</p>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center text-muted-foreground py-8">
+                <p>No vendors are available at the moment. Please check back later.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+      {selectedVendor && (
+        <VendorProductsModal
+          vendor={selectedVendor}
+          isOpen={!!selectedVendor}
+          onClose={() => setSelectedVendor(null)}
+        />
+      )}
+    </>
   );
 }
