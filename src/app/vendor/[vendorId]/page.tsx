@@ -33,9 +33,8 @@ export default function VendorPage({ params }: { params: { vendorId: string } })
   const { addToCart } = useCart();
   const { toast } = useToast();
 
-  const vendorId = params.vendorId;
-
   useEffect(() => {
+    const vendorId = params.vendorId;
     if (vendorId) {
       const fetchVendorAndProducts = async () => {
         setLoading(true);
@@ -72,7 +71,7 @@ export default function VendorPage({ params }: { params: { vendorId: string } })
       };
       fetchVendorAndProducts();
     }
-  }, [vendorId]);
+  }, [params.vendorId]);
 
   const handleAddToCart = (product: Product) => {
     addToCart({ ...product, quantity: 1 });
