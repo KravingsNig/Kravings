@@ -4,7 +4,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ChangeEvent } from 'react';
 import { updateEmail } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,18 +32,13 @@ const profileFormSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-const pictureFormSchema = z.object({
-  displayPicture: z.instanceof(FileList).refine((files) => files?.length === 1, 'Please select an image.'),
-});
-
-type PictureFormValues = z.infer<typeof pictureFormSchema>;
-
 export default function ProfilePage() {
   const { toast } = useToast();
   const { user, userData, loading } = useAuth();
   const [isSubmittingDetails, setIsSubmittingDetails] = useState(false);
   const [isSubmittingPicture, setIsSubmittingPicture] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const detailsForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -59,27 +54,24 @@ export default function ProfilePage() {
     },
     mode: 'onChange',
   });
-
-  const pictureForm = useForm<PictureFormValues>({
-    resolver: zodResolver(pictureFormSchema),
-  });
   
-  const displayPictureFile = pictureForm.watch('displayPicture');
-
-  useEffect(() => {
-    if (displayPictureFile && displayPictureFile.length > 0) {
-      const file = displayPictureFile[0];
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
-
-      return () => {
-        URL.revokeObjectURL(previewUrl);
-      };
-    } else {
-        setImagePreview(null);
     }
-  }, [displayPictureFile]);
+  };
 
+  useEffect(() => {
+    // Cleanup the object URL on component unmount
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   useEffect(() => {
     if (userData) {
@@ -135,16 +127,20 @@ export default function ProfilePage() {
     }
   }
 
-  async function onPictureSubmit(data: PictureFormValues) {
+  async function handlePictureUpload() {
     if (!user) {
       toast({ variant: "destructive", title: "Error", description: "You must be logged in." });
       return;
     }
+    if (!selectedFile) {
+        toast({ variant: "destructive", title: "No file selected", description: "Please select an image to upload." });
+        return;
+    }
+
     setIsSubmittingPicture(true);
 
-    const file = data.displayPicture[0];
     const storageRef = ref(storage, `vendors/${user.uid}/displayPicture`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const uploadTask = uploadBytesResumable(storageRef, selectedFile);
 
     uploadTask.on('state_changed',
       (snapshot) => {},
@@ -159,7 +155,8 @@ export default function ProfilePage() {
         await updateDoc(userDocRef, { imageUrl: downloadURL });
         toast({ title: "Picture updated!", description: "Your display picture has been changed." });
         setIsSubmittingPicture(false);
-        pictureForm.reset();
+        setSelectedFile(null);
+        setImagePreview(null);
       }
     );
   }
@@ -194,26 +191,18 @@ export default function ProfilePage() {
                 height={150} 
                 className="rounded-lg object-cover aspect-square"
               />
-              <Form {...pictureForm}>
-                <form onSubmit={pictureForm.handleSubmit(onPictureSubmit)} className="space-y-4 flex-1">
-                  <FormField
-                    control={pictureForm.control}
-                    name="displayPicture"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Upload a new picture</FormLabel>
-                        <FormControl>
-                          <Input type="file" accept="image/*" {...pictureForm.register("displayPicture")} disabled={isSubmittingPicture} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" disabled={isSubmittingPicture || !imagePreview}>
-                     {isSubmittingPicture ? 'Uploading...' : 'Upload Picture'}
-                  </Button>
-                </form>
-              </Form>
+              <div className="space-y-4 flex-1">
+                <FormItem>
+                  <FormLabel>Upload a new picture</FormLabel>
+                  <FormControl>
+                    <Input type="file" accept="image/*" onChange={handleFileChange} disabled={isSubmittingPicture} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+                <Button onClick={handlePictureUpload} disabled={isSubmittingPicture || !selectedFile}>
+                   {isSubmittingPicture ? 'Uploading...' : 'Upload Picture'}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
