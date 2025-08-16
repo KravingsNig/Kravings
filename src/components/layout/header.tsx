@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, Menu, LogOut, LayoutDashboard, ShieldCheck, User, Wallet, Info } from 'lucide-react';
+import { ShoppingCart, Menu, LogOut, LayoutDashboard, ShieldCheck, User, Wallet, Info, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { KravingsLogo } from '@/components/kravings-logo';
@@ -25,6 +25,7 @@ export function Header() {
   
   const userLinks = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/orders', label: 'Orders', icon: Package },
       { href: '/wallet', label: 'Wallet', icon: Wallet },
       { href: '/profile', label: 'Profile', icon: User },
   ];

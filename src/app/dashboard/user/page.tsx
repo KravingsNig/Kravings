@@ -34,7 +34,7 @@ export default function UserDashboardPage() {
             <CardDescription>Your current balance and transactions.</CardDescription>
           </CardHeader>
           <CardContent>
-             <p className="text-2xl font-bold">₦0.00</p>
+             <p className="text-2xl font-bold">₦{(userData?.walletBalance || 0).toLocaleString()}</p>
              <Button asChild variant="outline" className="mt-4">
               <Link href="/wallet">Manage Wallet</Link>
              </Button>
@@ -48,8 +48,8 @@ export default function UserDashboardPage() {
           <CardContent>
              <div className="text-center text-muted-foreground py-8">
               <p>You haven't placed any orders yet.</p>
-              <Button variant="link" asChild className="mt-2">
-                <Link href="/">Start Shopping</Link>
+               <Button asChild className="mt-4">
+                <Link href="/orders">View Orders</Link>
               </Button>
             </div>
           </CardContent>

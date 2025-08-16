@@ -4,7 +4,7 @@
 import { useEffect, useState, createContext, useContext, ReactNode, Dispatch, SetStateAction } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -31,9 +31,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (user) {
         setUser(user);
         try {
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
-                setUserData(userDoc.data());
+                // Check if walletBalance exists, if not, initialize it.
+                if (userDoc.data().walletBalance === undefined) {
+                    await setDoc(userDocRef, { walletBalance: 0 }, { merge: true });
+                    setUserData({ ...userDoc.data(), walletBalance: 0 });
+                } else {
+                    setUserData(userDoc.data());
+                }
             } else {
                 setUserData(null);
             }
@@ -53,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider value={{ user, userData, loading, setUserData }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
