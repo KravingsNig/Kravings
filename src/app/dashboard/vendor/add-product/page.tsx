@@ -16,7 +16,8 @@ import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { addDoc, collection } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
-import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { LoaderCircle } from 'lucide-react';
 
 const addProductFormSchema = z.object({
   name: z.string().min(3, { message: 'Product name must be at least 3 characters.' }),
@@ -46,62 +47,60 @@ export default function AddProductPage() {
     mode: 'onChange',
   });
 
-  async function onSubmit(data: AddProductFormValues) {
-    setIsLoading(true);
+  const fileRef = form.register("image");
 
+  async function onSubmit(data: AddProductFormValues) {
     if (!user) {
       toast({
         variant: 'destructive',
         title: 'Authentication Error',
         description: 'You must be logged in to add a product.',
       });
-      setIsLoading(false);
       return;
     }
 
+    setIsLoading(true);
+    
     try {
       const imageFile = data.image[0];
+      if (!imageFile) {
+        throw new Error("No image file provided.");
+      }
+
       const storageRef = ref(storage, `products/${user.uid}/${Date.now()}_${imageFile.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, imageFile);
+      
+      // 1. Upload the image
+      await uploadBytes(storageRef, imageFile);
+      
+      // 2. Get the download URL
+      const imageUrl = await getDownloadURL(storageRef);
 
-      uploadTask.on('state_changed',
-        () => {}, // We no longer track progress, so this is empty.
-        (error) => {
-          console.error("Upload failed:", error);
-          toast({
-            variant: "destructive",
-            title: "Image upload failed.",
-            description: error.message,
-          });
-          setIsLoading(false);
-        },
-        async () => {
-          const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          
-          await addDoc(collection(db, 'products'), {
-            vendorId: user.uid,
-            name: data.name,
-            details: data.details,
-            price: data.price,
-            imageUrl,
-            availability: data.availability,
-            approved: false, // Default to not approved
-            createdAt: new Date(),
-          });
+      // 3. Add product to Firestore
+      await addDoc(collection(db, 'products'), {
+        vendorId: user.uid,
+        name: data.name,
+        details: data.details,
+        price: data.price,
+        imageUrl,
+        availability: data.availability,
+        approved: false, // Default to not approved
+        createdAt: new Date(),
+      });
 
-          toast({
-            title: 'Product Submitted!',
-            description: `${data.name} has been submitted for approval.`,
-          });
-          router.push('/dashboard/vendor');
-        }
-      );
+      toast({
+        title: 'Product Submitted!',
+        description: `${data.name} has been submitted for approval.`,
+      });
+      router.push('/dashboard/vendor');
+
     } catch (error: any) {
+      console.error("Submission failed:", error);
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
         description: error.message || 'Could not add the product.',
       });
+    } finally {
       setIsLoading(false);
     }
   }
@@ -125,7 +124,7 @@ export default function AddProductPage() {
                   <FormItem>
                     <FormLabel>Product Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Jollof Rice" {...field} />
+                      <Input placeholder="Jollof Rice" {...field} disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -138,7 +137,7 @@ export default function AddProductPage() {
                   <FormItem>
                     <FormLabel>Details</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="A delicious pot of party jollof with all the fixings..." {...field} />
+                      <Textarea placeholder="A delicious pot of party jollof with all the fixings..." {...field} disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -151,7 +150,7 @@ export default function AddProductPage() {
                   <FormItem>
                     <FormLabel>Price (₦)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="100" placeholder="2500" {...field} />
+                      <Input type="number" step="100" placeholder="2500" {...field} disabled={isLoading} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -164,11 +163,11 @@ export default function AddProductPage() {
                   <FormItem>
                     <FormLabel>Product Image</FormLabel>
                     <FormControl>
-                      <Input
+                       <Input
                         type="file"
                         accept="image/*"
                         disabled={isLoading}
-                        onChange={(e) => field.onChange(e.target.files)}
+                        {...fileRef}
                       />
                     </FormControl>
                     <FormMessage />
@@ -198,7 +197,14 @@ export default function AddProductPage() {
               />
 
               <Button type="submit" className="font-semibold" disabled={isLoading}>
-                {isLoading ? 'Submitting for Approval...' : 'Submit for Approval'}
+                {isLoading ? (
+                  <>
+                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting for Approval...
+                  </>
+                ) : (
+                  'Submit for Approval'
+                )}
               </Button>
             </form>
           </Form>
