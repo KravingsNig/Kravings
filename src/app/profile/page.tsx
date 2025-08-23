@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
 import { Label } from '@/components/ui/label';
 import Loading from '@/app/loading';
+import { Separator } from '@/components/ui/separator';
 
 const profileFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }),
@@ -37,9 +38,14 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const { user, userData, loading, setUserData } = useAuth();
   const [isSubmittingDetails, setIsSubmittingDetails] = useState(false);
-  const [isSubmittingPicture, setIsSubmittingPicture] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  
+  const [isSubmittingBackground, setIsSubmittingBackground] = useState(false);
+  const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null);
+  const [backgroundDataUrl, setBackgroundDataUrl] = useState<string | null>(null);
+  
+  const [isSubmittingProfile, setIsSubmittingProfile] = useState(false);
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
+  const [profileDataUrl, setProfileDataUrl] = useState<string | null>(null);
 
   const detailsForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -56,7 +62,11 @@ export default function ProfilePage() {
     mode: 'onChange',
   });
   
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (
+    event: ChangeEvent<HTMLInputElement>,
+    setPreview: (url: string) => void,
+    setDataUrl: (url: string) => void
+  ) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // 2MB limit
@@ -79,8 +89,8 @@ export default function ProfilePage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
-        setImagePreview(dataUrl);
-        setImageDataUrl(dataUrl);
+        setPreview(dataUrl);
+        setDataUrl(dataUrl);
       };
       reader.readAsDataURL(file);
     }
@@ -144,32 +154,40 @@ export default function ProfilePage() {
     }
   }
 
-  async function handlePictureUpload() {
+  async function handleImageUpload(
+    field: 'imageUrl' | 'profileImageUrl',
+    dataUrl: string | null,
+    setIsSubmitting: (isSubmitting: boolean) => void,
+    setPreview: (url: string | null) => void,
+    setDataUrl: (url: string | null) => void,
+    toastTitle: string
+  ) {
     if (!user) {
       toast({ variant: "destructive", title: "Error", description: "You must be logged in." });
       return;
     }
-    if (!imageDataUrl) {
+    if (!dataUrl) {
         toast({ variant: "destructive", title: "No file selected", description: "Please select an image to upload." });
         return;
     }
 
-    setIsSubmittingPicture(true);
+    setIsSubmitting(true);
 
     try {
         const userDocRef = doc(db, 'users', user.uid);
-        await updateDoc(userDocRef, { imageUrl: imageDataUrl });
-        setUserData((prev: any) => ({ ...prev, imageUrl: imageDataUrl }));
-        toast({ title: "Picture updated!", description: "Your display picture has been changed." });
-        setImageDataUrl(null);
-        setImagePreview(null);
+        await updateDoc(userDocRef, { [field]: dataUrl });
+        setUserData((prev: any) => ({ ...prev, [field]: dataUrl }));
+        toast({ title: toastTitle, description: "Your image has been changed." });
+        setDataUrl(null);
+        setPreview(null);
     } catch (error: any) {
         console.error("Upload failed:", error);
         toast({ variant: 'destructive', title: "Upload failed", description: error.message });
     } finally {
-        setIsSubmittingPicture(false);
+        setIsSubmitting(false);
     }
   }
+
 
   if (loading || !userData) {
     return <Loading />;
@@ -180,31 +198,56 @@ export default function ProfilePage() {
       {userData?.isVendor && (
         <Card className="mb-8 shadow-lg">
            <CardHeader>
-            <CardTitle className="font-headline text-2xl">Display Picture</CardTitle>
+            <CardTitle className="font-headline text-2xl">Store Images</CardTitle>
             <CardDescription>
-              This image is shown on your vendor card on the homepage.
+              Manage the images that represent your store on the homepage.
             </CardDescription>
           </CardHeader>
           <CardContent>
+             {/* Background Image Section */}
             <div className="flex flex-col sm:flex-row gap-8 items-center">
               <Image 
-                src={imagePreview || userData.imageUrl || 'https://placehold.co/150x150'} 
-                alt="Display Picture Preview" 
-                width={150} 
-                height={150} 
-                className="rounded-lg object-cover aspect-square"
+                src={backgroundPreview || userData.imageUrl || 'https://placehold.co/600x400'} 
+                alt="Background Image Preview" 
+                width={200} 
+                height={112} 
+                className="rounded-lg object-cover aspect-video"
+                data-ai-hint="store background"
+              />
+              <div className="space-y-4 flex-1">
+                 <div className="grid w-full max-w-sm items-center gap-1.5">
+                  <Label htmlFor="background-picture">Upload a new background image</Label>
+                  <Input id="background-picture" type="file" accept="image/*" onChange={(e) => handleFileChange(e, setBackgroundPreview, setBackgroundDataUrl)} disabled={isSubmittingBackground} />
+                </div>
+                <Button onClick={() => handleImageUpload('imageUrl', backgroundDataUrl, setIsSubmittingBackground, setBackgroundPreview, setBackgroundDataUrl, 'Background Image Updated!')} disabled={isSubmittingBackground || !backgroundDataUrl}>
+                   {isSubmittingBackground ? 'Uploading...' : 'Upload Background'}
+                </Button>
+              </div>
+            </div>
+            
+            <Separator className="my-8" />
+
+            {/* Profile Image Section */}
+             <div className="flex flex-col sm:flex-row gap-8 items-center">
+              <Image 
+                src={profilePreview || userData.profileImageUrl || 'https://placehold.co/150x150'} 
+                alt="Profile Picture Preview" 
+                width={112} 
+                height={112} 
+                className="rounded-full object-cover aspect-square"
                 data-ai-hint="profile picture"
               />
               <div className="space-y-4 flex-1">
                  <div className="grid w-full max-w-sm items-center gap-1.5">
-                  <Label htmlFor="picture">Upload a new picture</Label>
-                  <Input id="picture" type="file" accept="image/*" onChange={handleFileChange} disabled={isSubmittingPicture} />
+                  <Label htmlFor="profile-picture">Upload a new profile picture</Label>
+                  <Input id="profile-picture" type="file" accept="image/*" onChange={(e) => handleFileChange(e, setProfilePreview, setProfileDataUrl)} disabled={isSubmittingProfile} />
                 </div>
-                <Button onClick={handlePictureUpload} disabled={isSubmittingPicture || !imageDataUrl}>
-                   {isSubmittingPicture ? 'Uploading...' : 'Upload Picture'}
+                <Button onClick={() => handleImageUpload('profileImageUrl', profileDataUrl, setIsSubmittingProfile, setProfilePreview, setProfileDataUrl, 'Profile Picture Updated!')} disabled={isSubmittingProfile || !profileDataUrl}>
+                   {isSubmittingProfile ? 'Uploading...' : 'Upload Profile Picture'}
                 </Button>
               </div>
             </div>
+
           </CardContent>
         </Card>
       )}

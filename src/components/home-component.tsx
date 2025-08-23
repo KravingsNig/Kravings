@@ -12,12 +12,14 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { VendorProductsModal } from './vendor-products-modal';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 interface Vendor {
   id: string;
   name: string;
   description: string;
   imageUrl: string;
+  profileImageUrl: string;
   hint: string;
 }
 
@@ -39,6 +41,7 @@ export default function HomeComponent() {
             name: data.businessName || 'Unnamed Vendor',
             description: data.businessDescription || 'No description available.',
             imageUrl: data.imageUrl || 'https://placehold.co/600x400',
+            profileImageUrl: data.profileImageUrl || 'https://placehold.co/150x150',
             hint: data.businessName?.toLowerCase().split(' ').slice(0, 2).join(' ') || 'vendor',
           });
         });
@@ -81,9 +84,10 @@ export default function HomeComponent() {
             {loading ? (
               Array.from({ length: 6 }).map((_, index) => (
                   <Card key={index} className="h-full overflow-hidden">
-                      <Skeleton className="aspect-video w-full" />
-                      <CardContent className="p-6">
-                          <Skeleton className="h-6 w-3/4 mb-2" />
+                      <Skeleton className="h-28 w-full" />
+                      <CardContent className="p-6 pt-16 relative">
+                          <Skeleton className="absolute -top-12 left-6 h-24 w-24 rounded-full border-4 border-background" />
+                          <Skeleton className="h-6 w-3/4 mb-2 mt-2" />
                           <Skeleton className="h-4 w-full mb-4" />
                           <Skeleton className="h-5 w-1/3" />
                       </CardContent>
@@ -96,21 +100,23 @@ export default function HomeComponent() {
                   className="h-full overflow-hidden border-border/60 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl cursor-pointer"
                   onClick={() => setSelectedVendor(vendor)}
                 >
-                  <CardHeader className="p-0">
-                    <div className="aspect-video overflow-hidden">
+                  <CardHeader className="p-0 h-28 relative">
                       <Image
                         src={vendor.imageUrl}
-                        alt={vendor.name}
+                        alt={`${vendor.name} background`}
                         width={600}
-                        height={400}
+                        height={200}
                         data-ai-hint={vendor.hint}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="h-full w-full object-cover"
                       />
-                    </div>
                   </CardHeader>
-                  <CardContent className="p-6">
+                  <CardContent className="p-6 pt-16 relative text-center">
+                    <Avatar className="absolute -top-12 left-1/2 -translate-x-1/2 h-24 w-24 border-4 border-background">
+                        <AvatarImage src={vendor.profileImageUrl} alt={vendor.name} />
+                        <AvatarFallback>{vendor.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
                     <CardTitle className="mb-2 font-headline text-xl font-semibold">{vendor.name}</CardTitle>
-                    <CardDescription>{vendor.description}</CardDescription>
+                    <CardDescription className="line-clamp-2">{vendor.description}</CardDescription>
                      <p className="mt-4 font-semibold text-primary/80 text-sm">
                       Click to view products
                     </p>
