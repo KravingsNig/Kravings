@@ -39,7 +39,14 @@ async function getVendorData(vendorId: string) {
     const querySnapshot = await getDocs(q);
     const products: Product[] = [];
     querySnapshot.forEach((doc) => {
-      products.push({ id: doc.id, ...doc.data() } as Product);
+      const data = doc.data();
+      products.push({ 
+        id: doc.id,
+        name: data.name,
+        price: data.price,
+        details: data.details,
+        imageUrl: data.imageUrl,
+      });
     });
 
     return { vendor, products };
