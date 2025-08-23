@@ -6,7 +6,6 @@ import { ShoppingCart, Menu, LogOut, LayoutDashboard, ShieldCheck, User, Wallet,
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { KravingsLogo } from '@/components/kravings-logo';
-import { ModeToggle } from '@/components/mode-toggle';
 import { useAuth } from '@/hooks/use-auth';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -85,18 +84,11 @@ export function Header() {
             </Link>
           </Button>
 
-          <ModeToggle />
-          
           {!user && (
-            <Button className="hidden md:inline-flex" onClick={() => router.push('/signin')}>Sign In</Button>
+            <div className="hidden md:flex">
+              <Button onClick={() => router.push('/signin')}>Sign In</Button>
+            </div>
           )}
-
-          {user && (
-             <Button variant="ghost" size="icon" aria-label="Sign Out" onClick={handleSignOut}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          )}
-
 
           <Sheet>
             <SheetTrigger asChild>
@@ -152,12 +144,7 @@ export function Header() {
                 </div>
 
                 <div className="mt-auto mb-4">
-                  {user ? (
-                      <Button variant="outline" className="w-full" onClick={handleSignOut}>
-                          <LogOut className="mr-2"/>
-                          Sign Out
-                      </Button>
-                  ) : (
+                  {!user && (
                       <SheetClose asChild>
                         <Button className="w-full" onClick={() => router.push('/signin')}>
                           Sign In
