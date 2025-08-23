@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Image from 'next/image';
@@ -26,7 +26,8 @@ interface Product {
   imageUrl: string;
 }
 
-export default function VendorPage({ params: { vendorId } }: { params: { vendorId: string } }) {
+export default function VendorPage({ params }: { params: { vendorId: string } }) {
+  const { vendorId } = use(Promise.resolve(params));
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
