@@ -27,6 +27,7 @@ interface Product {
 }
 
 export default function VendorPage({ params }: { params: { vendorId: string } }) {
+  const { vendorId } = params;
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,6 @@ export default function VendorPage({ params }: { params: { vendorId: string } })
   const { toast } = useToast();
 
   useEffect(() => {
-    const vendorId = params.vendorId;
     if (vendorId) {
       const fetchVendorAndProducts = async () => {
         setLoading(true);
@@ -71,7 +71,7 @@ export default function VendorPage({ params }: { params: { vendorId: string } })
       };
       fetchVendorAndProducts();
     }
-  }, [params.vendorId]);
+  }, [vendorId]);
 
   const handleAddToCart = (product: Product) => {
     addToCart({ ...product, quantity: 1 });
