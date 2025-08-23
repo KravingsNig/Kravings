@@ -23,7 +23,8 @@ export default function CartPage() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const deliveryFee = 1500;
-  const totalCost = cartTotal + deliveryFee;
+  const serviceCharge = 200;
+  const totalCost = cartTotal + deliveryFee + serviceCharge;
 
   const handleCheckout = async () => {
     if (!user) {
@@ -74,12 +75,18 @@ export default function CartPage() {
                 const consumerDocRef = doc(db, "users", user.uid);
                 const vendorDocRef = doc(db, "users", vendorId);
                 const orderRef = doc(collection(db, "orders"));
-
-                // 1. READ vendor data FIRST.
+                
+                // 1. READ consumer and vendor data FIRST.
+                const consumerDoc = await transaction.get(consumerDocRef);
+                if (!consumerDoc.exists()) {
+                    throw new Error("Consumer does not exist!");
+                }
                 const vendorDoc = await transaction.get(vendorDocRef);
                 if (!vendorDoc.exists()) {
                     throw new Error("Vendor does not exist!");
                 }
+
+                const currentConsumerBalance = consumerDoc.data().walletBalance || 0;
                 const currentVendorBalance = vendorDoc.data().walletBalance || 0;
 
                 // 2. NOW perform all WRITES.
@@ -93,30 +100,29 @@ export default function CartPage() {
                     createdAt: Timestamp.now(),
                 });
 
-                // Debit consumer
-                transaction.update(consumerDocRef, { walletBalance: userData.walletBalance - vendorSubtotal });
+                // Debit consumer for this specific order
+                transaction.update(consumerDocRef, { walletBalance: currentConsumerBalance - vendorSubtotal });
 
                 // Credit vendor
                 transaction.update(vendorDocRef, { walletBalance: currentVendorBalance + vendorSubtotal });
             });
-
-             // Update local state for consumer
-            setUserData((prev: any) => ({
-                ...prev,
-                walletBalance: prev.walletBalance - vendorSubtotal,
-            }));
         }
-
-        // Handle delivery fee debit as a separate transaction if needed
-        // For simplicity, we assume it goes to the platform, so we just debit the user
-         await runTransaction(db, async (transaction) => {
+        
+        // Handle delivery fee and service charge debit in a separate final transaction
+        await runTransaction(db, async (transaction) => {
             const consumerDocRef = doc(db, "users", user.uid);
-            transaction.update(consumerDocRef, { walletBalance: userData.walletBalance - cartTotal - deliveryFee });
+            const consumerDoc = await transaction.get(consumerDocRef);
+             if (!consumerDoc.exists()) {
+                throw new Error("Consumer does not exist!");
+            }
+            const newBalance = (consumerDoc.data().walletBalance || 0) - deliveryFee - serviceCharge;
+            transaction.update(consumerDocRef, { walletBalance: newBalance });
         });
 
+        // Update local state for consumer after all transactions
         setUserData((prev: any) => ({
             ...prev,
-            walletBalance: prev.walletBalance - deliveryFee,
+            walletBalance: prev.walletBalance - totalCost,
         }));
 
 
@@ -191,6 +197,10 @@ export default function CartPage() {
                  <div className="flex justify-between">
                     <span>Delivery Fee</span>
                     <span>₦{deliveryFee.toLocaleString()}</span>
+                 </div>
+                 <div className="flex justify-between">
+                    <span>Service Charge</span>
+                    <span>₦{serviceCharge.toLocaleString()}</span>
                  </div>
                  <Separator />
                  <div className="flex justify-between font-bold text-lg">
