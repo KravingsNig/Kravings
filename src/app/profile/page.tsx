@@ -27,7 +27,7 @@ const profileFormSchema = z.object({
   firstName: z.string().min(2, { message: 'First name must be at least 2 characters.' }),
   lastName: z.string().min(2, { message: 'Last name must be at least 2 characters.' }),
   username: z.string().optional(),
-  businessName: z.string().optional(),
+  businessName: z.string().min(2, { message: 'Business name must be at least 2 characters.' }).optional(),
   address: z.string().min(10, { message: 'Address must be at least 10 characters.' }).optional(),
   businessDescription: z.string().optional(),
 });
@@ -131,8 +131,13 @@ export default function ProfilePage() {
       if (data.address !== undefined && data.address !== userData.address) {
         updates.address = data.address;
       }
-      if (userData.isVendor && data.businessDescription !== undefined && data.businessDescription !== userData.businessDescription) {
-        updates.businessDescription = data.businessDescription;
+      if (userData.isVendor) {
+        if (data.businessName && data.businessName !== userData.businessName) {
+            updates.businessName = data.businessName;
+        }
+        if (data.businessDescription !== undefined && data.businessDescription !== userData.businessDescription) {
+            updates.businessDescription = data.businessDescription;
+        }
       }
       
       if (Object.keys(updates).length > 0) {
@@ -300,7 +305,7 @@ export default function ProfilePage() {
                     <FormItem>
                       <FormLabel>Business Name</FormLabel>
                       <FormControl>
-                        <Input {...field} disabled />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
