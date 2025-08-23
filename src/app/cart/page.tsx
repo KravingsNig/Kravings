@@ -10,7 +10,7 @@ import { useCart } from "@/hooks/use-cart";
 import Image from "next/image";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { collection, addDoc, doc, runTransaction, Timestamp, where, query, getDocs } from "firebase/firestore";
+import { collection, addDoc, doc, runTransaction, Timestamp, where, query, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -38,11 +38,18 @@ export default function CartPage() {
 
     setIsCheckingOut(true);
 
-    // Group items by vendor
     const vendorItems: { [vendorId: string]: any[] } = {};
     const productVendorMap: { [productId: string]: string } = {};
 
     try {
+        // Find an admin to credit the service charge
+        const adminQuery = query(collection(db, "users"), where("isAdmin", "==", true), limit(1));
+        const adminSnapshot = await getDocs(adminQuery);
+        if (adminSnapshot.empty) {
+            throw new Error("No admin account found to process service charge.");
+        }
+        const adminId = adminSnapshot.docs[0].id;
+
         const productIds = cartItems.map(item => item.id);
         const productsRef = collection(db, 'products');
         const q = query(productsRef, where('__name__', 'in', productIds));
@@ -66,31 +73,49 @@ export default function CartPage() {
             });
         });
 
-        // Create an order for each vendor
-        for (const vendorId of Object.keys(vendorItems)) {
-            const items = vendorItems[vendorId];
-            const vendorSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const totalVendorPayout = Object.values(vendorItems).reduce((sum, items) => {
+            return sum + items.reduce((itemSum, item) => itemSum + item.price * item.quantity, 0);
+        }, 0);
 
-            await runTransaction(db, async (transaction) => {
-                const consumerDocRef = doc(db, "users", user.uid);
-                const vendorDocRef = doc(db, "users", vendorId);
-                const orderRef = doc(collection(db, "orders"));
+        await runTransaction(db, async (transaction) => {
+            const consumerDocRef = doc(db, "users", user.uid);
+            const adminDocRef = doc(db, "users", adminId);
+            
+            // 1. READ all necessary documents first.
+            const consumerDoc = await transaction.get(consumerDocRef);
+            if (!consumerDoc.exists()) throw new Error("Consumer does not exist!");
+            
+            const adminDoc = await transaction.get(adminDocRef);
+            if (!adminDoc.exists()) throw new Error("Admin does not exist!");
+
+            const currentConsumerBalance = consumerDoc.data().walletBalance || 0;
+            const currentAdminBalance = adminDoc.data().walletBalance || 0;
+            
+            // Verify funds again within the transaction
+            if (currentConsumerBalance < totalCost) {
+                throw new Error("Insufficient funds.");
+            }
+
+            // 2. Perform all WRITES.
+            // Debit consumer for the full amount
+            transaction.update(consumerDocRef, { walletBalance: currentConsumerBalance - totalCost });
+            
+            // Credit admin with the service charge
+            transaction.update(adminDocRef, { walletBalance: currentAdminBalance + serviceCharge });
+
+            // Create orders and credit vendors
+            for (const vendorId of Object.keys(vendorItems)) {
+                const items = vendorItems[vendorId];
+                const vendorSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
                 
-                // 1. READ consumer and vendor data FIRST.
-                const consumerDoc = await transaction.get(consumerDocRef);
-                if (!consumerDoc.exists()) {
-                    throw new Error("Consumer does not exist!");
-                }
+                const vendorDocRef = doc(db, "users", vendorId);
                 const vendorDoc = await transaction.get(vendorDocRef);
-                if (!vendorDoc.exists()) {
-                    throw new Error("Vendor does not exist!");
-                }
+                if (!vendorDoc.exists()) throw new Error(`Vendor ${vendorId} not found.`);
 
-                const currentConsumerBalance = consumerDoc.data().walletBalance || 0;
                 const currentVendorBalance = vendorDoc.data().walletBalance || 0;
 
-                // 2. NOW perform all WRITES.
-                // Create the order
+                // Create the order document
+                const orderRef = doc(collection(db, "orders"));
                 transaction.set(orderRef, {
                     consumerId: user.uid,
                     vendorId: vendorId,
@@ -100,23 +125,9 @@ export default function CartPage() {
                     createdAt: Timestamp.now(),
                 });
 
-                // Debit consumer for this specific order
-                transaction.update(consumerDocRef, { walletBalance: currentConsumerBalance - vendorSubtotal });
-
                 // Credit vendor
                 transaction.update(vendorDocRef, { walletBalance: currentVendorBalance + vendorSubtotal });
-            });
-        }
-        
-        // Handle delivery fee and service charge debit in a separate final transaction
-        await runTransaction(db, async (transaction) => {
-            const consumerDocRef = doc(db, "users", user.uid);
-            const consumerDoc = await transaction.get(consumerDocRef);
-             if (!consumerDoc.exists()) {
-                throw new Error("Consumer does not exist!");
             }
-            const newBalance = (consumerDoc.data().walletBalance || 0) - deliveryFee - serviceCharge;
-            transaction.update(consumerDocRef, { walletBalance: newBalance });
         });
 
         // Update local state for consumer after all transactions
@@ -125,14 +136,13 @@ export default function CartPage() {
             walletBalance: prev.walletBalance - totalCost,
         }));
 
-
         toast({ title: "Order Placed!", description: "Your order has been successfully placed." });
         clearCart();
         router.push('/orders');
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Checkout failed:", error);
-        toast({ variant: "destructive", title: "Checkout Failed", description: "There was an issue placing your order." });
+        toast({ variant: "destructive", title: "Checkout Failed", description: error.message || "There was an issue placing your order." });
     } finally {
         setIsCheckingOut(false);
     }
