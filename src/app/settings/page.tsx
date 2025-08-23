@@ -9,14 +9,17 @@ import { LogOut, Moon, Sun, User, Bell, Palette, Info, Lock } from "lucide-react
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, messaging } from "@/lib/firebase"; // Import messaging
 import { useRouter } from "next/navigation";
 import packageJson from "../../../package.json";
 import Loading from "@/app/loading";
+import { getToken } from "firebase/messaging";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function SettingsPage() {
     const { setTheme, theme } = useTheme();
-    const { user, loading } = useAuth();
+    const { user, loading, setUserData } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
 
@@ -48,6 +51,40 @@ export default function SettingsPage() {
     const handleSignOut = async () => {
         await auth.signOut();
         router.push('/');
+    };
+
+    const handleEnableNotifications = async () => {
+        if (!user) {
+             toast({ variant: 'destructive', title: 'Error', description: 'You must be signed in.' });
+             return;
+        }
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                console.log('Notification permission granted.');
+                const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+                if (!vapidKey) {
+                    throw new Error("VAPID key is not configured.");
+                }
+                const currentToken = await getToken(messaging, { vapidKey });
+                if (currentToken) {
+                    // Save the token to Firestore
+                    const userDocRef = doc(db, 'users', user.uid);
+                    await updateDoc(userDocRef, { fcmToken: currentToken });
+                    setUserData((prev: any) => ({ ...prev, fcmToken: currentToken }));
+                    toast({ title: 'Success', description: 'Notifications have been enabled!' });
+                } else {
+                    console.log('No registration token available. Request permission to generate one.');
+                     toast({ variant: 'destructive', title: 'Error', description: 'Could not get notification token.' });
+                }
+            } else {
+                console.log('Unable to get permission to notify.');
+                toast({ variant: 'destructive', title: 'Permission Denied', description: 'You have denied notification permissions.' });
+            }
+        } catch (error) {
+            console.error('An error occurred while enabling notifications. ', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'An error occurred while enabling notifications.' });
+        }
     };
 
     if (loading) {
@@ -112,6 +149,18 @@ export default function SettingsPage() {
                                 </Button>
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Bell /> Notifications</CardTitle>
+                        <CardDescription>Manage how you receive notifications from Kravings.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button onClick={handleEnableNotifications}>
+                            Enable Push Notifications
+                        </Button>
                     </CardContent>
                 </Card>
 
