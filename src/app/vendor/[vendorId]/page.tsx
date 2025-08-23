@@ -26,8 +26,7 @@ interface Product {
   imageUrl: string;
 }
 
-export default function VendorPage({ params }: { params: { vendorId: string } }) {
-  const { vendorId } = params;
+export default function VendorPage({ params: { vendorId } }: { params: { vendorId: string } }) {
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
