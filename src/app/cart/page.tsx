@@ -75,7 +75,15 @@ export default function CartPage() {
                 const vendorDocRef = doc(db, "users", vendorId);
                 const orderRef = doc(collection(db, "orders"));
 
-                // 1. Create the order
+                // 1. READ vendor data FIRST.
+                const vendorDoc = await transaction.get(vendorDocRef);
+                if (!vendorDoc.exists()) {
+                    throw new Error("Vendor does not exist!");
+                }
+                const currentVendorBalance = vendorDoc.data().walletBalance || 0;
+
+                // 2. NOW perform all WRITES.
+                // Create the order
                 transaction.set(orderRef, {
                     consumerId: user.uid,
                     vendorId: vendorId,
@@ -85,12 +93,10 @@ export default function CartPage() {
                     createdAt: Timestamp.now(),
                 });
 
-                // 2. Debit consumer
+                // Debit consumer
                 transaction.update(consumerDocRef, { walletBalance: userData.walletBalance - vendorSubtotal });
 
-                // 3. Credit vendor
-                const vendorDoc = await transaction.get(vendorDocRef);
-                const currentVendorBalance = vendorDoc.data()?.walletBalance || 0;
+                // Credit vendor
                 transaction.update(vendorDocRef, { walletBalance: currentVendorBalance + vendorSubtotal });
             });
 
