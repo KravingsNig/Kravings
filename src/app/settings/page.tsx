@@ -58,6 +58,11 @@ export default function SettingsPage() {
              toast({ variant: 'destructive', title: 'Error', description: 'You must be signed in.' });
              return;
         }
+        if (!messaging) {
+            toast({ variant: 'destructive', title: 'Unsupported', description: 'Notifications are not supported on this device.' });
+            return;
+        }
+
         try {
             const permission = await Notification.requestPermission();
             if (permission === 'granted') {
