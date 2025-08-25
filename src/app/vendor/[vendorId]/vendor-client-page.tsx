@@ -108,8 +108,6 @@ export default function VendorClientPage({ vendorId }: VendorClientPageProps) {
             alt={vendor.businessName}
             fill
             className="object-cover"
-            priority
-            unoptimized
           />
         ) : (
           <div className="h-full w-full bg-gradient-to-r from-primary to-accent" />
@@ -135,7 +133,6 @@ export default function VendorClientPage({ vendorId }: VendorClientPageProps) {
                       width={600}
                       height={400}
                       className="h-full w-full object-cover"
-                      unoptimized
                     />
                   </div>
                 </CardHeader>
