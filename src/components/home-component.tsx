@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,18 +23,28 @@ interface Vendor {
   hint: string;
 }
 
+interface Product {
+  id: string;
+  name: string;
+  vendorId: string;
+}
+
 export default function HomeComponent() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const fetchVendors = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        const q = query(collection(db, "users"), where("isVendor", "==", true));
-        const querySnapshot = await getDocs(q);
+        // Fetch vendors
+        const vendorQuery = query(collection(db, "users"), where("isVendor", "==", true));
+        const vendorSnapshot = await getDocs(vendorQuery);
         const fetchedVendors: Vendor[] = [];
-        querySnapshot.forEach((doc) => {
+        vendorSnapshot.forEach((doc) => {
           const data = doc.data();
           fetchedVendors.push({
             id: doc.id,
@@ -46,15 +56,51 @@ export default function HomeComponent() {
           });
         });
         setVendors(fetchedVendors);
+
+        // Fetch approved products
+        const productQuery = query(collection(db, "products"), where("approved", "==", true));
+        const productSnapshot = await getDocs(productQuery);
+        const fetchedProducts: Product[] = [];
+        productSnapshot.forEach((doc) => {
+          const data = doc.data();
+          fetchedProducts.push({
+            id: doc.id,
+            name: data.name,
+            vendorId: data.vendorId,
+          });
+        });
+        setProducts(fetchedProducts);
+
       } catch (error) {
-        console.error("Error fetching vendors: ", error);
+        console.error("Error fetching data: ", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchVendors();
+    fetchData();
   }, []);
+
+  const filteredVendors = useMemo(() => {
+    if (!searchQuery) {
+      return vendors;
+    }
+
+    const lowercasedQuery = searchQuery.toLowerCase();
+
+    // Find vendor IDs from products that match the query
+    const vendorIdsFromProducts = new Set(
+      products
+        .filter(product => product.name.toLowerCase().includes(lowercasedQuery))
+        .map(product => product.vendorId)
+    );
+
+    // Filter vendors
+    return vendors.filter(vendor =>
+      vendor.name.toLowerCase().includes(lowercasedQuery) ||
+      vendorIdsFromProducts.has(vendor.id)
+    );
+  }, [searchQuery, vendors, products]);
 
   return (
     <>
@@ -71,15 +117,19 @@ export default function HomeComponent() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Search for vendors, food, or drinks..."
+                placeholder="Search for vendors or food..."
                 className="w-full rounded-full bg-background pl-10 pr-4 py-6 text-base shadow-md focus-visible:ring-primary/40"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
         </section>
 
         <section>
-          <h2 className="mb-8 text-center font-headline text-3xl font-bold">Featured Vendors</h2>
+          <h2 className="mb-8 text-center font-headline text-3xl font-bold">
+            {searchQuery ? `Results for "${searchQuery}"` : "Featured Vendors"}
+          </h2>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {loading ? (
               Array.from({ length: 6 }).map((_, index) => (
@@ -93,8 +143,8 @@ export default function HomeComponent() {
                       </CardContent>
                   </Card>
               ))
-            ) : vendors.length > 0 ? (
-              vendors.map((vendor) => (
+            ) : filteredVendors.length > 0 ? (
+              filteredVendors.map((vendor) => (
                 <Card 
                   key={vendor.id} 
                   className="h-full overflow-hidden border-border/60 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl cursor-pointer"
@@ -108,6 +158,7 @@ export default function HomeComponent() {
                         height={200}
                         data-ai-hint={vendor.hint}
                         className="h-full w-full object-cover"
+                        unoptimized
                       />
                   </CardHeader>
                   <CardContent className="p-6 pt-16 relative text-center">
@@ -125,7 +176,7 @@ export default function HomeComponent() {
               ))
             ) : (
               <div className="col-span-full text-center text-muted-foreground py-8">
-                <p>No vendors are available at the moment. Please check back later.</p>
+                <p>No vendors found matching your search. Please try a different term.</p>
               </div>
             )}
           </div>
