@@ -24,10 +24,14 @@ export function Header() {
   
   const userLinks = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/orders', label: 'Orders', icon: Package },
-      { href: '/wallet', label: 'Wallet', icon: Wallet },
       { href: '/profile', label: 'Profile', icon: User },
       { href: '/settings', label: 'Settings', icon: Settings },
+  ];
+  
+  const mobileUserLinks = [
+    ...userLinks,
+    { href: '/orders', label: 'Orders', icon: Package },
+    { href: '/wallet', label: 'Wallet', icon: Wallet },
   ];
 
   const publicLinks = [
@@ -84,6 +88,15 @@ export function Header() {
             </Link>
           </Button>
 
+          {user && (
+             <Button asChild variant="ghost" size="icon" aria-label="Wallet">
+                <Link href="/wallet">
+                    <Wallet className="h-5 w-5" />
+                </Link>
+            </Button>
+          )}
+
+
           {!user && (
             <div className="hidden md:flex">
               <Button onClick={() => router.push('/signin')}>Sign In</Button>
@@ -114,7 +127,7 @@ export function Header() {
 
                     {user && (
                       <>
-                        {userLinks.map(link => (
+                        {mobileUserLinks.map(link => (
                             <SheetClose asChild key={link.href}>
                               <Link href={link.href} className="text-lg font-medium text-foreground/80 transition-colors hover:text-foreground">
                                   {link.label}
